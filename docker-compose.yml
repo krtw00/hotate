@@ -12,13 +12,16 @@ services:
       - ${SSH_KEY_DIR:-~/.ssh}:/home/node/.ssh:ro
     labels:
       - "traefik.enable=true"
+      # HTTPS
       - "traefik.http.routers.webssh.rule=Host(`webssh.local`)"
       - "traefik.http.routers.webssh.entrypoints=websecure"
-      - "traefik.http.routers.webssh.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.webssh.tls=true"
       - "traefik.http.services.webssh.loadbalancer.server.port=3000"
-      # WebSocket: disable buffering and set idle timeout
-      - "traefik.http.middlewares.webssh-headers.headers.customrequestheaders.Connection=Upgrade"
-      - "traefik.http.routers.webssh.middlewares=webssh-headers"
+      # HTTP → HTTPS redirect
+      - "traefik.http.routers.webssh-redirect.rule=Host(`webssh.local`)"
+      - "traefik.http.routers.webssh-redirect.entrypoints=web"
+      - "traefik.http.middlewares.webssh-https.redirectscheme.scheme=https"
+      - "traefik.http.routers.webssh-redirect.middlewares=webssh-https"
     networks:
       - traefik
 

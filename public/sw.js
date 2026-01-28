@@ -1,23 +1,11 @@
-const CACHE_NAME = 'webssh-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/css/style.css',
-  '/js/app.js',
-  '/js/terminal.js',
-  '/js/input.js',
-  '/manifest.json',
-];
+const CACHE_NAME = 'webssh-v3';
 
-// Install: cache static assets
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
+// Install: skip waiting immediately
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
-// Activate: clean old caches
+// Activate: clean old caches, claim clients
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -27,29 +15,18 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch strategy
+// Fetch: network-first for everything
+// Falls back to cache only when offline
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-
-  // Network-first for API and WebSocket
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/ws')) {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
-    );
-    return;
-  }
-
-  // Cache-first for static assets
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
+    fetch(event.request, { credentials: 'same-origin' })
+      .then((response) => {
         if (response.ok) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return response;
-      });
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });

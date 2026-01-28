@@ -25,17 +25,20 @@ const InputManager = (() => {
       inputEl.value = '';
     });
 
-    // Enter key or normal input submission
+    // Enter key — keydown (desktop + mobile)
     inputEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !composing) {
         e.preventDefault();
-        const text = inputEl.value;
-        if (text) {
-          sendText(text + '\n');
-        } else {
-          sendText('\n');
-        }
-        inputEl.value = '';
+        submitInput(inputEl);
+      }
+    });
+
+    // Enter key — beforeinput (Android fallback)
+    // Android virtual keyboards often fire insertLineBreak instead of keydown Enter
+    inputEl.addEventListener('beforeinput', (e) => {
+      if ((e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph') && !composing) {
+        e.preventDefault();
+        submitInput(inputEl);
       }
     });
 
@@ -46,22 +49,18 @@ const InputManager = (() => {
       }
     });
 
-    // Send button
-    sendBtnEl.addEventListener('click', () => {
+    // Send button — use pointerdown (click never fires due to focus loss on input blur)
+    sendBtnEl.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
       if (composing) return;
-      const text = inputEl.value;
-      if (text) {
-        sendText(text + '\n');
-      } else {
-        sendText('\n');
-      }
-      inputEl.value = '';
+      submitInput(inputEl);
       inputEl.focus();
     });
 
-    // Special key buttons
+    // Special key buttons — also use pointerdown
     specialKeyEls.forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
         const key = btn.dataset.key;
         if (key) {
           sendRaw(key);
@@ -69,6 +68,16 @@ const InputManager = (() => {
         }
       });
     });
+  }
+
+  function submitInput(inputEl) {
+    const text = inputEl.value;
+    if (text) {
+      sendText(text + '\r');
+    } else {
+      sendText('\r');
+    }
+    inputEl.value = '';
   }
 
   function sendText(text) {

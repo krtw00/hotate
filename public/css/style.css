@@ -59,6 +59,7 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+  min-height: 100dvh;
   padding: 16px;
 }
 
@@ -286,6 +287,8 @@ body {
 #screen-terminal {
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
+  height: var(--vh, 100dvh);
   overflow: hidden;
 }
 
@@ -410,6 +413,8 @@ body {
 }
 .btn-send:hover { box-shadow: 0 2px 12px rgba(59, 130, 246, 0.3); }
 .btn-send:active { transform: scale(0.95); }
+.btn-send svg,
+.key-btn svg { pointer-events: none; }
 
 /* ===== Modal ===== */
 .modal-overlay {

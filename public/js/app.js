@@ -390,6 +390,14 @@ const App = (() => {
 
     TerminalManager.create(terminalContainer);
 
+    // Direct terminal input → WebSocket (PC keyboard)
+    TerminalManager.onInput((data) => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        const encoded = btoa(unescape(encodeURIComponent(data)));
+        ws.send(JSON.stringify({ type: 'input', payload: encoded }));
+      }
+    });
+
     // Send initial resize
     setTimeout(() => {
       TerminalManager.fit();
@@ -406,8 +414,8 @@ const App = (() => {
       }
     });
 
-    // Focus input
-    document.getElementById('ssh-input').focus();
+    // Focus terminal for direct keyboard input
+    TerminalManager.focus();
   }
 
   function disconnect() {
@@ -425,8 +433,12 @@ const App = (() => {
   }
 
   function sendInput(base64Data) {
+    const state = ws ? ws.readyState : 'null';
+    console.log(`[WS] sendInput: readyState=${state}, data=${atob(base64Data).replace(/\r/g,'\\r').replace(/\n/g,'\\n')}`);
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'input', payload: base64Data }));
+    } else {
+      console.warn('[WS] sendInput DROPPED — ws not open');
     }
   }
 
@@ -443,8 +455,31 @@ const App = (() => {
     return div.innerHTML;
   }
 
+  // ===== Viewport resize (virtual keyboard) =====
+  function setupViewportResize() {
+    if (!window.visualViewport) return;
+
+    function onViewportResize() {
+      // Set CSS custom property to actual visible height
+      const vh = window.visualViewport.height;
+      document.documentElement.style.setProperty('--vh', vh + 'px');
+
+      // Re-fit terminal when viewport changes (keyboard show/hide)
+      if (screenTerminal.classList.contains('active')) {
+        TerminalManager.fit();
+      }
+    }
+
+    window.visualViewport.addEventListener('resize', onViewportResize);
+    window.visualViewport.addEventListener('scroll', onViewportResize);
+    onViewportResize();
+  }
+
   // ===== Start =====
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', () => {
+    init();
+    setupViewportResize();
+  });
 
   return { connect, disconnect };
 })();

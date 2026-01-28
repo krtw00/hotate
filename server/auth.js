@@ -5,12 +5,20 @@
 
 const REALM = 'WebSSH';
 
+// SW/PWA files must be accessible without auth
+// (Service Worker fetch calls don't carry Basic Auth credentials)
+const AUTH_EXEMPT = ['/sw.js', '/manifest.json'];
+
 export function basicAuth(req, res, next) {
   const user = process.env.WEBSSH_USER;
   const pass = process.env.WEBSSH_PASS;
 
   if (!user || !pass) {
     console.warn('WEBSSH_USER/WEBSSH_PASS not set — auth disabled');
+    return next();
+  }
+
+  if (AUTH_EXEMPT.includes(req.path)) {
     return next();
   }
 

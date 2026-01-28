@@ -1,12 +1,13 @@
 /**
  * terminal.js — xterm.js ターミナル管理
  * CDNから読み込んだ Terminal, FitAddon を使用する。
- * disableStdin: true で直接入力を無効化し、input.js 経由でのみ入力する。
+ * ターミナル直接入力（PC向け）と input.js 経由入力（モバイルIME向け）の両対応。
  */
 
 const TerminalManager = (() => {
   let term = null;
   let fitAddon = null;
+  let onDataCallback = null;
 
   function create(container) {
     if (term) destroy();
@@ -37,7 +38,6 @@ const TerminalManager = (() => {
         brightCyan: '#b3f0ff',
         brightWhite: '#ffffff',
       },
-      disableStdin: true,
       scrollback: 5000,
       convertEol: true,
     });
@@ -47,11 +47,20 @@ const TerminalManager = (() => {
     term.open(container);
     fitAddon.fit();
 
+    // Direct keyboard input → WebSocket
+    term.onData((data) => {
+      if (onDataCallback) onDataCallback(data);
+    });
+
     window.addEventListener('resize', () => {
       if (fitAddon) fitAddon.fit();
     });
 
     return term;
+  }
+
+  function onInput(callback) {
+    onDataCallback = callback;
   }
 
   function write(base64Data) {
@@ -83,5 +92,9 @@ const TerminalManager = (() => {
     term.onResize(({ cols, rows }) => callback(cols, rows));
   }
 
-  return { create, write, getSize, fit, destroy, onResize };
+  function focus() {
+    if (term) term.focus();
+  }
+
+  return { create, write, getSize, fit, destroy, onResize, onInput, focus };
 })();
