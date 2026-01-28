@@ -1,0 +1,17 @@
+{
+  "name": "webssh",
+  "version": "1.0.0",
+  "description": "Browser-based SSH client with IME support",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file=.env --watch server/index.js",
+    "start": "node --env-file=.env server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "ws": "^8.18.0",
+    "ssh2": "^1.16.0",
+    "uuid": "^9.0.0"
+  }
+}

@@ -1,0 +1,27 @@
+services:
+  webssh:
+    build: .
+    container_name: webssh
+    restart: unless-stopped
+    environment:
+      - WEBSSH_USER=${WEBSSH_USER:-admin}
+      - WEBSSH_PASS=${WEBSSH_PASS:-changeme}
+      - PORT=3000
+    volumes:
+      - ./data:/app/data
+      - ${SSH_KEY_DIR:-~/.ssh}:/home/node/.ssh:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.webssh.rule=Host(`webssh.local`)"
+      - "traefik.http.routers.webssh.entrypoints=websecure"
+      - "traefik.http.routers.webssh.tls.certresolver=letsencrypt"
+      - "traefik.http.services.webssh.loadbalancer.server.port=3000"
+      # WebSocket: disable buffering and set idle timeout
+      - "traefik.http.middlewares.webssh-headers.headers.customrequestheaders.Connection=Upgrade"
+      - "traefik.http.routers.webssh.middlewares=webssh-headers"
+    networks:
+      - traefik
+
+networks:
+  traefik:
+    external: true

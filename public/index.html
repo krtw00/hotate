@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WebSSH</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0a0e14">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- ===== 接続画面 ===== -->
+    <div id="screen-connect" class="screen active">
+        <div class="connect-container">
+            <!-- Terminal-style Header -->
+            <div class="terminal-header">
+                <div class="terminal-header-top">
+                    <div class="window-dots">
+                        <div class="dot red"></div>
+                        <div class="dot yellow"></div>
+                        <div class="dot green"></div>
+                    </div>
+                    <span class="mono text-xs text-muted ml-2">webssh — connect</span>
+                </div>
+                <div class="terminal-header-body">
+                    <span class="text-green mono text-sm">$</span>
+                    <span class="mono text-sm ml-2">ssh connect</span>
+                    <span class="mono text-sm cursor-blink">_</span>
+                </div>
+            </div>
+
+            <!-- Title -->
+            <div class="title-section">
+                <h1 class="title mono">
+                    <svg class="icon-lg text-blue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                    WebSSH
+                </h1>
+                <p class="text-xs text-muted mt-1">Secure connection to your servers</p>
+            </div>
+
+            <!-- Saved Hosts -->
+            <div class="hosts-section">
+                <div class="hosts-header">
+                    <label class="mono text-xs text-muted uppercase tracking-wider flex-center gap-2">
+                        <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/>
+                        </svg>
+                        Saved Hosts
+                    </label>
+                    <button id="btn-add-host" class="text-xs text-blue mono flex-center gap-1 hover-bright">
+                        <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Add
+                    </button>
+                </div>
+                <div id="host-list" class="host-list">
+                    <!-- populated by JS -->
+                </div>
+            </div>
+
+            <!-- Divider -->
+            <div class="divider">
+                <div class="divider-line"></div>
+                <span id="auth-divider-label" class="text-xs text-muted mono">PASSWORD</span>
+                <div class="divider-line"></div>
+            </div>
+
+            <!-- Auth Area: Password -->
+            <div id="auth-password" class="auth-area">
+                <div class="input-wrapper">
+                    <input id="connect-password" type="password" placeholder="Enter password" class="input-field mono">
+                    <svg class="icon-sm input-icon text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Auth Area: Key -->
+            <div id="auth-key" class="auth-area hidden">
+                <div class="key-info-box">
+                    <svg class="icon-sm text-green flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                    </svg>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs text-green">SSH Key Authentication</div>
+                        <div id="key-path-display" class="text-xs mono text-muted truncate">~/.ssh/id_ed25519</div>
+                    </div>
+                    <svg class="icon-sm flex-shrink-0 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Status -->
+            <div id="connect-status" class="status-bar">
+                <div class="status-dot red"></div>
+                <span class="text-xs text-muted mono">Not connected</span>
+            </div>
+
+            <!-- Connect Button -->
+            <button id="btn-connect" class="btn-connect" disabled>
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                Select a host
+            </button>
+
+            <!-- Footer -->
+            <div class="footer">
+                <span class="text-xs text-muted mono">WebSSH</span>
+                <span class="text-xs text-muted-dim">|</span>
+                <span class="text-xs text-muted">Mobile-First SSH</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== ターミナル画面 ===== -->
+    <div id="screen-terminal" class="screen">
+        <!-- Header -->
+        <header id="terminal-header" class="terminal-screen-header">
+            <div class="tab-indicator">
+                <div class="status-dot green"></div>
+                <span id="header-host" class="mono text-xs font-medium">host</span>
+                <span id="header-port" class="text-xs text-muted mono">:22</span>
+            </div>
+            <div class="flex-1"></div>
+            <span id="header-user" class="text-xs text-muted mono hidden-mobile">user@host</span>
+            <button id="btn-disconnect" class="btn-disconnect" title="Disconnect">
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </header>
+
+        <!-- Terminal -->
+        <main id="terminal-container" class="terminal-main"></main>
+
+        <!-- Special Keys -->
+        <div id="special-keys" class="special-keys-bar">
+            <button class="key-btn" data-key="\t">Tab</button>
+            <button class="key-btn" data-key="\x03">Ctrl+C</button>
+            <button class="key-btn" data-key="\x04">Ctrl+D</button>
+            <button class="key-btn" data-key="\x1b[A">&uarr;</button>
+            <button class="key-btn" data-key="\x1b[B">&darr;</button>
+            <button class="key-btn" data-key="\x1b">Esc</button>
+            <button class="key-btn hidden-mobile" data-key="\x1a">Ctrl+Z</button>
+            <button class="key-btn hidden-mobile" data-key="\x0c">Ctrl+L</button>
+        </div>
+
+        <!-- Input Bar -->
+        <div class="input-bar">
+            <div class="input-bar-inner">
+                <span class="mono text-sm text-blue">$</span>
+                <input id="ssh-input" type="text" placeholder="コマンドを入力..." class="ssh-input mono">
+            </div>
+            <button id="btn-send" class="btn-send">
+                <svg class="icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== ホスト追加/編集モーダル ===== -->
+    <div id="modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title" class="mono font-semibold">Add Host</h2>
+                <button id="btn-modal-close" class="btn-icon text-muted hover-bright">
+                    <svg class="icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label mono">NAME</label>
+                    <input id="modal-name" type="text" placeholder="My Server" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label mono">HOST</label>
+                    <input id="modal-host" type="text" placeholder="192.168.1.100 or hostname" class="form-input mono">
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="width: 96px;">
+                        <label class="form-label mono">PORT</label>
+                        <input id="modal-port" type="number" value="22" class="form-input mono text-center">
+                    </div>
+                    <div class="form-group flex-1">
+                        <label class="form-label mono">USERNAME</label>
+                        <input id="modal-username" type="text" placeholder="iguchi" class="form-input mono">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label mono">AUTH METHOD</label>
+                    <div class="auth-toggle">
+                        <button id="modal-auth-password" class="auth-toggle-btn active mono" data-auth="password">
+                            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                            </svg>
+                            Password
+                        </button>
+                        <button id="modal-auth-key" class="auth-toggle-btn mono" data-auth="key">
+                            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                            </svg>
+                            SSH Key
+                        </button>
+                    </div>
+                </div>
+                <div id="modal-password-group" class="form-group">
+                    <label class="form-label mono">PASSWORD</label>
+                    <input id="modal-password" type="password" placeholder="Enter password" class="form-input mono">
+                </div>
+                <div id="modal-keypath-group" class="form-group hidden">
+                    <label class="form-label mono">KEY PATH</label>
+                    <input id="modal-keypath" type="text" placeholder="~/.ssh/id_ed25519" value="~/.ssh/id_ed25519" class="form-input mono">
+                    <p class="text-xs text-muted mono mt-1">Server-side path to private key file</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-modal-delete" class="btn-danger hidden">Delete</button>
+                <div class="flex-1"></div>
+                <button id="btn-modal-cancel" class="btn-secondary">Cancel</button>
+                <button id="btn-modal-save" class="btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+    <script src="/js/terminal.js"></script>
+    <script src="/js/input.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>
