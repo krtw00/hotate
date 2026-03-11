@@ -1,24 +1,15 @@
 services:
   webssh:
-    build: .
-    container_name: webssh
-    restart: unless-stopped
-    environment:
-      - WEBSSH_USER=${WEBSSH_USER:-admin}
-      - WEBSSH_PASS=${WEBSSH_PASS:-changeme}
-      - PORT=3000
-    volumes:
-      - ./data:/app/data
-      - ${SSH_KEY_DIR:-~/.ssh}:/home/node/.ssh:ro
+    ports: !reset []
     labels:
       - "traefik.enable=true"
       # HTTPS
-      - "traefik.http.routers.webssh.rule=Host(`webssh.local`) || Host(`webssh.codenica.duckdns.org`)"
+      - "traefik.http.routers.webssh.rule=Host(`webssh.local`)"
       - "traefik.http.routers.webssh.entrypoints=websecure"
       - "traefik.http.routers.webssh.tls=true"
       - "traefik.http.services.webssh.loadbalancer.server.port=3000"
       # HTTP → HTTPS redirect
-      - "traefik.http.routers.webssh-redirect.rule=Host(`webssh.local`) || Host(`webssh.codenica.duckdns.org`)"
+      - "traefik.http.routers.webssh-redirect.rule=Host(`webssh.local`)"
       - "traefik.http.routers.webssh-redirect.entrypoints=web"
       - "traefik.http.middlewares.webssh-https.redirectscheme.scheme=https"
       - "traefik.http.routers.webssh-redirect.middlewares=webssh-https"

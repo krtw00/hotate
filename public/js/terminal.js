@@ -56,7 +56,53 @@ const TerminalManager = (() => {
       if (fitAddon) fitAddon.fit();
     });
 
+    setupTouchScroll(container);
+
     return term;
+  }
+
+  function setupTouchScroll(container) {
+    let touchStartY = null;
+    let accumulated = 0;
+    const SCROLL_THRESHOLD = 15;
+
+    // capture フェーズでターミナル画面全体のtouchmoveを抑止
+    const screen = document.getElementById('screen-terminal');
+    screen.addEventListener('touchmove', (e) => {
+      if (e.target.closest('.input-bar') || e.target.closest('.special-keys-bar')) return;
+      e.preventDefault();
+    }, { passive: false, capture: true });
+
+    container.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        touchStartY = e.touches[0].clientY;
+        accumulated = 0;
+      }
+    }, { passive: true });
+
+    container.addEventListener('touchmove', (e) => {
+      if (touchStartY === null || !onDataCallback) return;
+      e.preventDefault();
+
+      const currentY = e.touches[0].clientY;
+      accumulated += touchStartY - currentY;
+      touchStartY = currentY;
+
+      const ticks = Math.trunc(accumulated / SCROLL_THRESHOLD);
+      if (ticks !== 0) {
+        accumulated -= ticks * SCROLL_THRESHOLD;
+        const button = ticks > 0 ? 64 : 65;
+        const count = Math.abs(ticks);
+        for (let i = 0; i < count; i++) {
+          onDataCallback('\x1b[<' + button + ';1;1M');
+        }
+      }
+    }, { passive: false });
+
+    container.addEventListener('touchend', () => {
+      touchStartY = null;
+      accumulated = 0;
+    }, { passive: true });
   }
 
   function onInput(callback) {
