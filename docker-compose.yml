@@ -18,8 +18,8 @@ services:
       - "traefik.http.services.webssh.loadbalancer.server.port=3000"
       - "traefik.http.routers.webssh-http.rule=Host(`webssh.codenica.dev`)"
       - "traefik.http.routers.webssh-http.entrypoints=web"
-      - "traefik.http.routers.webssh-http.middlewares=redirect-to-https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.routers.webssh-http.middlewares=webssh-redirect"
+      - "traefik.http.middlewares.webssh-redirect.redirectscheme.scheme=https"
     networks:
       - web
 

@@ -18,7 +18,7 @@ export function basicAuth(req, res, next) {
     return next();
   }
 
-  if (AUTH_EXEMPT.includes(req.path)) {
+  if (AUTH_EXEMPT.includes(req.path) || req.path.startsWith('/.well-known/')) {
     return next();
   }
 
