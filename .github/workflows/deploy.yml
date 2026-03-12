@@ -8,9 +8,11 @@ jobs:
   deploy:
     runs-on: self-hosted
     steps:
+      - uses: actions/checkout@v4
+
       - name: Deploy WebSSH
         run: |
+          rsync -a --exclude='.git' --exclude='data' --exclude='.env' --exclude='node_modules' ./ ~/apps/webssh/
           cd ~/apps/webssh
-          git pull origin main
           docker compose build --no-cache
           docker compose up -d
