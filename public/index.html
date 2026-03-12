@@ -153,6 +153,9 @@
 
         <!-- Special Keys -->
         <div id="special-keys" class="special-keys-bar">
+            <button class="key-btn" id="btn-select" onclick="const on=TerminalManager.toggleSelect();this.style.background=on?'#264f78':'';">Select</button>
+            <button class="key-btn" onclick="TerminalManager.doCopy()">Copy</button>
+            <button class="key-btn" onclick="TerminalManager.doPaste()">Paste</button>
             <button class="key-btn" data-key="\t">Tab</button>
             <button class="key-btn" data-key="\x03">Ctrl+C</button>
             <button class="key-btn" data-key="\x04">Ctrl+D</button>

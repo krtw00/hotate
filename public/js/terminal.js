@@ -1,29 +1,14 @@
 /**
  * terminal.js — xterm.js ターミナル管理
- * CDNから読み込んだ Terminal, FitAddon を使用する。
- * ターミナル直接入力（PC向け）と input.js 経由入力（モバイルIME向け）の両対応。
  */
 
 const TerminalManager = (() => {
   let term = null;
   let fitAddon = null;
   let onDataCallback = null;
-  // tmuxが要求したマウスモードを追跡
-  let mouseMode = 'none'; // 'none' | 'x10' | 'sgr'
-
-  // デバッグ用オーバーレイ（原因特定後に削除）
-  let debugEl = null;
-  let debugLog = [];
-  function dbg(msg) {
-    debugLog.push(msg);
-    if (debugLog.length > 8) debugLog.shift();
-    if (!debugEl) {
-      debugEl = document.createElement('div');
-      debugEl.style.cssText = 'position:fixed;top:0;left:0;right:0;background:rgba(0,0,0,0.85);color:#0f0;font:11px monospace;padding:4px;z-index:99999;pointer-events:none;white-space:pre';
-      document.body.appendChild(debugEl);
-    }
-    debugEl.textContent = debugLog.join('\n');
-  }
+  let mouseMode = "none";
+  let selectMode = false;
+  let anchorRow = null; // 選択開始行
 
   function create(container) {
     if (term) destroy();
@@ -33,26 +18,26 @@ const TerminalManager = (() => {
       fontSize: 14,
       fontFamily: "'JetBrains Mono', monospace",
       theme: {
-        background: '#020408',
-        foreground: '#e6edf3',
-        cursor: '#e6edf3',
-        selectionBackground: '#264f78',
-        black: '#0a0e14',
-        red: '#f85149',
-        green: '#3fb950',
-        yellow: '#d29922',
-        blue: '#79c0ff',
-        magenta: '#d2a8ff',
-        cyan: '#76e3ea',
-        white: '#e6edf3',
-        brightBlack: '#6e7681',
-        brightRed: '#ffa198',
-        brightGreen: '#56d364',
-        brightYellow: '#e3b341',
-        brightBlue: '#a5d6ff',
-        brightMagenta: '#e2c5ff',
-        brightCyan: '#b3f0ff',
-        brightWhite: '#ffffff',
+        background: "#020408",
+        foreground: "#e6edf3",
+        cursor: "#e6edf3",
+        selectionBackground: "#264f78",
+        black: "#0a0e14",
+        red: "#f85149",
+        green: "#3fb950",
+        yellow: "#d29922",
+        blue: "#79c0ff",
+        magenta: "#d2a8ff",
+        cyan: "#76e3ea",
+        white: "#e6edf3",
+        brightBlack: "#6e7681",
+        brightRed: "#ffa198",
+        brightGreen: "#56d364",
+        brightYellow: "#e3b341",
+        brightBlue: "#a5d6ff",
+        brightMagenta: "#e2c5ff",
+        brightCyan: "#b3f0ff",
+        brightWhite: "#ffffff",
       },
       scrollback: 5000,
       convertEol: true,
@@ -63,35 +48,166 @@ const TerminalManager = (() => {
     term.open(container);
     fitAddon.fit();
 
-    // Direct keyboard input → WebSocket
     term.onData((data) => {
       if (onDataCallback) onDataCallback(data);
     });
 
-    window.addEventListener('resize', () => {
+    window.addEventListener("resize", () => {
       if (fitAddon) fitAddon.fit();
     });
 
+    setupCopyPaste();
+    setupSelectMode();
     setupTouchScroll();
     setupWheelScroll();
 
     return term;
   }
 
-  // サーバーからの出力を解析してマウスモードを追跡
-  function detectMouseMode(text) {
-    // SGRモード有効: \x1b[?1006h
-    if (text.includes('\x1b[?1006h')) { mouseMode = 'sgr'; dbg('MODE: sgr (?1006h)'); }
-    // X10モード有効: \x1b[?1000h
-    else if (text.includes('\x1b[?1000h')) { mouseMode = 'x10'; dbg('MODE: x10 (?1000h)'); }
-    // マウスモード無効: \x1b[?1000l or \x1b[?1006l
-    if (text.includes('\x1b[?1000l') && text.includes('\x1b[?1006l')) { mouseMode = 'none'; dbg('MODE: none (disabled)'); }
-    // DECSET関連のエスケープを全て記録
-    const decsets = text.match(/\x1b\[\?[\d;]+[hl]/g);
-    if (decsets) dbg('DECSET: ' + decsets.map(s => s.replace('\x1b', 'ESC')).join(' '));
+  function setupCopyPaste() {
+    if (!term) return;
+
+    term.attachCustomKeyEventHandler((e) => {
+      if (e.type !== "keydown") return true;
+      const ctrl = e.ctrlKey || e.metaKey;
+
+      if (ctrl && e.shiftKey && e.key === "C") {
+        e.preventDefault(); copySelection(); return false;
+      }
+      if (ctrl && e.shiftKey && e.key === "V") {
+        e.preventDefault(); pasteFromClipboard(); return false;
+      }
+      if (ctrl && !e.shiftKey && e.key === "c") {
+        if (term.hasSelection()) {
+          e.preventDefault(); copySelection(); return false;
+        }
+        return true;
+      }
+      if (ctrl && !e.shiftKey && e.key === "v") {
+        e.preventDefault(); pasteFromClipboard(); return false;
+      }
+      return true;
+    });
+
+    document.addEventListener("paste", (e) => {
+      const screen = document.getElementById("screen-terminal");
+      if (!screen || !screen.classList.contains("active")) return;
+      const text = e.clipboardData && e.clipboardData.getData("text");
+      if (text && onDataCallback) {
+        e.preventDefault();
+        onDataCallback(text);
+      }
+    });
+
+    const el = term.element;
+    if (el) {
+      el.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        if (term.hasSelection()) { copySelection(); }
+        else { pasteFromClipboard(); }
+      });
+    }
   }
 
-  // クライアント座標をターミナルセル座標に変換
+  // タッチで行選択
+  function setupSelectMode() {
+    if (!term) return;
+    const el = term.element;
+    if (!el) return;
+
+    el.addEventListener("touchend", (e) => {
+      if (!selectMode) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+
+      const touch = e.changedTouches[0];
+      const { row } = clientToCell(touch.clientX, touch.clientY);
+      // buffer row (viewport relative)
+      const bufRow = row - 1;
+
+      if (anchorRow === null) {
+        // 1st tap: select single line
+        anchorRow = bufRow;
+        term.select(0, bufRow, term.cols);
+        showToast("Line " + row + " selected — tap another line for range");
+      } else {
+        // 2nd tap: select range
+        const startRow = Math.min(anchorRow, bufRow);
+        const endRow = Math.max(anchorRow, bufRow);
+        const lineCount = endRow - startRow + 1;
+        term.select(0, startRow, term.cols * lineCount);
+        anchorRow = null;
+        showToast(lineCount + " lines selected — tap Copy");
+      }
+    }, { capture: true });
+  }
+
+  function copySelection() {
+    if (!term) return;
+    const sel = term.getSelection();
+    if (!sel) return;
+    navigator.clipboard.writeText(sel).then(() => {
+      term.clearSelection();
+      showToast("Copied");
+    }).catch(() => {});
+  }
+
+  function pasteFromClipboard() {
+    navigator.clipboard.readText().then((text) => {
+      if (text && onDataCallback) onDataCallback(text);
+    }).catch(() => {});
+  }
+
+  function doCopy() {
+    if (!term) return;
+    if (term.hasSelection()) {
+      copySelection();
+    } else {
+      term.selectAll();
+      copySelection();
+    }
+    // コピー後にセレクトモード解除
+    if (selectMode) {
+      selectMode = false;
+      anchorRow = null;
+      const btn = document.getElementById("btn-select");
+      if (btn) btn.style.background = "";
+    }
+  }
+
+  function doPaste() {
+    pasteFromClipboard();
+  }
+
+  function toggleSelect() {
+    selectMode = !selectMode;
+    anchorRow = null;
+    if (selectMode) {
+      term.clearSelection();
+      showToast("Select mode: tap a line");
+    }
+    return selectMode;
+  }
+
+  function showToast(msg) {
+    let t = document.getElementById("copy-toast");
+    if (!t) {
+      t = document.createElement("div");
+      t.id = "copy-toast";
+      t.style.cssText = "position:fixed;top:48px;left:50%;transform:translateX(-50%);background:#3fb950;color:#000;padding:4px 16px;border-radius:4px;font-size:12px;font-family:monospace;z-index:9999;opacity:0;transition:opacity .2s;pointer-events:none;";
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = "1";
+    setTimeout(() => { t.style.opacity = "0"; }, 1500);
+  }
+
+  function detectMouseMode(text) {
+    if (text.includes("\x1b[?1006h")) { mouseMode = "sgr"; }
+    else if (text.includes("\x1b[?1000h")) { mouseMode = "x10"; }
+    if (text.includes("\x1b[?1000l") && text.includes("\x1b[?1006l")) { mouseMode = "none"; }
+  }
+
   function clientToCell(clientX, clientY) {
     if (!term) return { col: 1, row: 1 };
     const el = term.element;
@@ -104,20 +220,17 @@ const TerminalManager = (() => {
     return { col, row };
   }
 
-  // マウスモードに応じたスクロールシーケンスを生成
   function scrollSeq(up, col, row) {
-    col = col || 1;
-    row = row || 1;
-    if (mouseMode === 'sgr') {
+    col = col || 1; row = row || 1;
+    if (mouseMode === "sgr") {
       const btn = up ? 64 : 65;
-      return '\x1b[<' + btn + ';' + col + ';' + row + 'M';
+      return "\x1b[<" + btn + ";" + col + ";" + row + "M";
     }
-    if (mouseMode === 'x10') {
+    if (mouseMode === "x10") {
       const btn = up ? 96 : 97;
-      return '\x1b[M' + String.fromCharCode(btn, 32 + col, 32 + row);
+      return "\x1b[M" + String.fromCharCode(btn, 32 + col, 32 + row);
     }
-    // mouseMode=none: Up/Downキーでフォールバック
-    return up ? '\x1b[A' : '\x1b[B';
+    return up ? "\x1b[A" : "\x1b[B";
   }
 
   function setupTouchScroll() {
@@ -127,11 +240,11 @@ const TerminalManager = (() => {
     let lastTouchY = 0;
     const SCROLL_THRESHOLD = 15;
 
-    // captureフェーズで最優先にタッチを横取り（xterm.jsのstopPropagation対策）
-    document.addEventListener('touchstart', (e) => {
-      const screen = document.getElementById('screen-terminal');
-      if (!screen || !screen.classList.contains('active')) return;
-      if (e.target.closest('.input-bar') || e.target.closest('.special-keys-bar')) return;
+    document.addEventListener("touchstart", (e) => {
+      const screen = document.getElementById("screen-terminal");
+      if (!screen || !screen.classList.contains("active")) return;
+      if (e.target.closest(".input-bar") || e.target.closest(".special-keys-bar")) return;
+      if (selectMode) return;
       if (e.touches.length === 1) {
         touchStartY = e.touches[0].clientY;
         lastTouchX = e.touches[0].clientX;
@@ -140,15 +253,15 @@ const TerminalManager = (() => {
       }
     }, { passive: true, capture: true });
 
-    document.addEventListener('touchmove', (e) => {
-      const screen = document.getElementById('screen-terminal');
-      if (!screen || !screen.classList.contains('active')) return;
-      if (e.target.closest('.input-bar') || e.target.closest('.special-keys-bar')) return;
+    document.addEventListener("touchmove", (e) => {
+      const screen = document.getElementById("screen-terminal");
+      if (!screen || !screen.classList.contains("active")) return;
+      if (e.target.closest(".input-bar") || e.target.closest(".special-keys-bar")) return;
+      if (selectMode) return;
       e.preventDefault();
       e.stopImmediatePropagation();
 
-      if (touchStartY === null || !onDataCallback) { dbg('TOUCH: skip (startY=' + touchStartY + ' cb=' + !!onDataCallback + ')'); return; }
-
+      if (touchStartY === null || !onDataCallback) return;
       const currentX = e.touches[0].clientX;
       const currentY = e.touches[0].clientY;
       accumulated += touchStartY - currentY;
@@ -162,14 +275,12 @@ const TerminalManager = (() => {
         const { col, row } = clientToCell(lastTouchX, lastTouchY);
         const seq = scrollSeq(ticks > 0, col, row);
         const count = Math.abs(ticks);
-        dbg('TOUCH: mode=' + mouseMode + ' col=' + col + ' row=' + row + ' dir=' + (ticks > 0 ? 'up' : 'down') + ' n=' + count);
-        for (let i = 0; i < count; i++) {
-          onDataCallback(seq);
-        }
+        for (let i = 0; i < count; i++) { onDataCallback(seq); }
       }
     }, { passive: false, capture: true });
 
-    document.addEventListener('touchend', () => {
+    document.addEventListener("touchend", (e) => {
+      if (selectMode) return;
       touchStartY = null;
       accumulated = 0;
     }, { passive: true, capture: true });
@@ -179,22 +290,17 @@ const TerminalManager = (() => {
     if (!term) return;
     const el = term.element;
     if (!el) return;
-
-    el.addEventListener('wheel', (e) => {
+    el.addEventListener("wheel", (e) => {
       if (!onDataCallback) return;
       e.preventDefault();
       const lines = Math.max(1, Math.abs(Math.round(e.deltaY / 40)));
       const { col, row } = clientToCell(e.clientX, e.clientY);
       const seq = scrollSeq(e.deltaY < 0, col, row);
-      for (let i = 0; i < lines; i++) {
-        onDataCallback(seq);
-      }
+      for (let i = 0; i < lines; i++) { onDataCallback(seq); }
     }, { passive: false });
   }
 
-  function onInput(callback) {
-    onDataCallback = callback;
-  }
+  function onInput(callback) { onDataCallback = callback; }
 
   function write(base64Data) {
     if (!term) return;
@@ -209,17 +315,10 @@ const TerminalManager = (() => {
     return { cols: term.cols, rows: term.rows };
   }
 
-  function fit() {
-    if (fitAddon) fitAddon.fit();
-  }
+  function fit() { if (fitAddon) fitAddon.fit(); }
 
   function destroy() {
-    if (term) {
-      term.dispose();
-      term = null;
-      fitAddon = null;
-      mouseMode = 'none';
-    }
+    if (term) { term.dispose(); term = null; fitAddon = null; mouseMode = "none"; selectMode = false; anchorRow = null; }
   }
 
   function onResize(callback) {
@@ -227,9 +326,7 @@ const TerminalManager = (() => {
     term.onResize(({ cols, rows }) => callback(cols, rows));
   }
 
-  function focus() {
-    if (term) term.focus();
-  }
+  function focus() { if (term) term.focus(); }
 
-  return { create, write, getSize, fit, destroy, onResize, onInput, focus };
+  return { create, write, getSize, fit, destroy, onResize, onInput, focus, doCopy, doPaste, toggleSelect };
 })();

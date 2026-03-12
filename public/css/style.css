@@ -357,12 +357,11 @@ body {
   background: #0d1117;
   border-top: 1px solid #1c2330;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  overflow-x: auto;
   flex-shrink: 0;
-  scrollbar-width: none;
 }
 .special-keys-bar::-webkit-scrollbar { display: none; }
 
