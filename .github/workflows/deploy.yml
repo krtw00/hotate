@@ -1,0 +1,16 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Deploy WebSSH
+        run: |
+          cd ~/apps/webssh
+          git pull origin main
+          docker compose build --no-cache
+          docker compose up -d

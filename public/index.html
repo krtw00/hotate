@@ -5,13 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>WebSSH</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="manifest" href="/manifest.json">
+    <!-- <link rel="manifest" href="/manifest.json"> -->
     <meta name="theme-color" content="#0a0e14">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
     <link rel="stylesheet" href="/css/style.css">
+    <script>
+    // Pull-to-refresh完全抑止（最優先captureフェーズ）
+    document.addEventListener('touchmove', function(e) {
+      if (document.querySelector('#screen-terminal.active')) {
+        if (!e.target.closest('.input-bar')) e.preventDefault();
+      }
+    }, { passive: false, capture: true });
+    </script>
 </head>
 <body>
     <!-- ===== 接続画面 ===== -->
@@ -155,8 +163,8 @@
             <button class="key-btn hidden-mobile" data-key="\x0c">Ctrl+L</button>
         </div>
 
-        <!-- Input Bar -->
-        <div class="input-bar">
+        <!-- Input Bar (hidden - direct terminal input used) -->
+        <div class="input-bar hidden">
             <div class="input-bar-inner">
                 <span class="mono text-sm text-blue">$</span>
                 <input id="ssh-input" type="text" placeholder="コマンドを入力..." class="ssh-input mono" enterkeyhint="send" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
@@ -237,8 +245,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
-    <script src="/js/terminal.js"></script>
-    <script src="/js/input.js"></script>
-    <script src="/js/app.js"></script>
+    <script src="/js/terminal.js?v=5"></script>
+    <script src="/js/input.js?v=5"></script>
+    <script src="/js/app.js?v=5"></script>
 </body>
 </html>

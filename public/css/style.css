@@ -1,9 +1,16 @@
 /* ===== Reset & Base ===== */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-html, body {
-  overscroll-behavior: none; height: 100%; }
+html {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior-y: contain;
+}
 body {
-  overscroll-behavior: none;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior-y: contain;
+  position: fixed;
+  width: 100%;
   font-family: 'Inter', sans-serif;
   background: #0a0e14;
   color: #e6edf3;
@@ -60,9 +67,10 @@ body {
 #screen-connect {
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100%;
   padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
 }
 
 .connect-container {
@@ -293,6 +301,8 @@ body {
   height: 100dvh;
   height: var(--vh, 100dvh);
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 .terminal-screen-header {
@@ -331,6 +341,15 @@ body {
   background: #020408;
   overflow: hidden;
   padding: 4px;
+  touch-action: none;
+}
+.terminal-main * {
+  touch-action: none;
+}
+.xterm-viewport {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: none !important;
 }
 
 /* Special keys */

@@ -8,6 +8,22 @@ const TerminalManager = (() => {
   let term = null;
   let fitAddon = null;
   let onDataCallback = null;
+  // tmuxが要求したマウスモードを追跡
+  let mouseMode = 'none'; // 'none' | 'x10' | 'sgr'
+
+  // デバッグ用オーバーレイ（原因特定後に削除）
+  let debugEl = null;
+  let debugLog = [];
+  function dbg(msg) {
+    debugLog.push(msg);
+    if (debugLog.length > 8) debugLog.shift();
+    if (!debugEl) {
+      debugEl = document.createElement('div');
+      debugEl.style.cssText = 'position:fixed;top:0;left:0;right:0;background:rgba(0,0,0,0.85);color:#0f0;font:11px monospace;padding:4px;z-index:99999;pointer-events:none;white-space:pre';
+      document.body.appendChild(debugEl);
+    }
+    debugEl.textContent = debugLog.join('\n');
+  }
 
   function create(container) {
     if (term) destroy();
@@ -56,53 +72,124 @@ const TerminalManager = (() => {
       if (fitAddon) fitAddon.fit();
     });
 
-    setupTouchScroll(container);
+    setupTouchScroll();
+    setupWheelScroll();
 
     return term;
   }
 
-  function setupTouchScroll(container) {
+  // サーバーからの出力を解析してマウスモードを追跡
+  function detectMouseMode(text) {
+    // SGRモード有効: \x1b[?1006h
+    if (text.includes('\x1b[?1006h')) { mouseMode = 'sgr'; dbg('MODE: sgr (?1006h)'); }
+    // X10モード有効: \x1b[?1000h
+    else if (text.includes('\x1b[?1000h')) { mouseMode = 'x10'; dbg('MODE: x10 (?1000h)'); }
+    // マウスモード無効: \x1b[?1000l or \x1b[?1006l
+    if (text.includes('\x1b[?1000l') && text.includes('\x1b[?1006l')) { mouseMode = 'none'; dbg('MODE: none (disabled)'); }
+    // DECSET関連のエスケープを全て記録
+    const decsets = text.match(/\x1b\[\?[\d;]+[hl]/g);
+    if (decsets) dbg('DECSET: ' + decsets.map(s => s.replace('\x1b', 'ESC')).join(' '));
+  }
+
+  // クライアント座標をターミナルセル座標に変換
+  function clientToCell(clientX, clientY) {
+    if (!term) return { col: 1, row: 1 };
+    const el = term.element;
+    if (!el) return { col: 1, row: 1 };
+    const rect = el.getBoundingClientRect();
+    const cellWidth = rect.width / term.cols;
+    const cellHeight = rect.height / term.rows;
+    const col = Math.max(1, Math.min(term.cols, Math.floor((clientX - rect.left) / cellWidth) + 1));
+    const row = Math.max(1, Math.min(term.rows, Math.floor((clientY - rect.top) / cellHeight) + 1));
+    return { col, row };
+  }
+
+  // マウスモードに応じたスクロールシーケンスを生成
+  function scrollSeq(up, col, row) {
+    col = col || 1;
+    row = row || 1;
+    if (mouseMode === 'sgr') {
+      const btn = up ? 64 : 65;
+      return '\x1b[<' + btn + ';' + col + ';' + row + 'M';
+    }
+    if (mouseMode === 'x10') {
+      const btn = up ? 96 : 97;
+      return '\x1b[M' + String.fromCharCode(btn, 32 + col, 32 + row);
+    }
+    // mouseMode=none: Up/Downキーでフォールバック
+    return up ? '\x1b[A' : '\x1b[B';
+  }
+
+  function setupTouchScroll() {
     let touchStartY = null;
     let accumulated = 0;
+    let lastTouchX = 0;
+    let lastTouchY = 0;
     const SCROLL_THRESHOLD = 15;
 
-    // capture フェーズでターミナル画面全体のtouchmoveを抑止
-    const screen = document.getElementById('screen-terminal');
-    screen.addEventListener('touchmove', (e) => {
+    // captureフェーズで最優先にタッチを横取り（xterm.jsのstopPropagation対策）
+    document.addEventListener('touchstart', (e) => {
+      const screen = document.getElementById('screen-terminal');
+      if (!screen || !screen.classList.contains('active')) return;
       if (e.target.closest('.input-bar') || e.target.closest('.special-keys-bar')) return;
-      e.preventDefault();
-    }, { passive: false, capture: true });
-
-    container.addEventListener('touchstart', (e) => {
       if (e.touches.length === 1) {
         touchStartY = e.touches[0].clientY;
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
         accumulated = 0;
       }
-    }, { passive: true });
+    }, { passive: true, capture: true });
 
-    container.addEventListener('touchmove', (e) => {
-      if (touchStartY === null || !onDataCallback) return;
+    document.addEventListener('touchmove', (e) => {
+      const screen = document.getElementById('screen-terminal');
+      if (!screen || !screen.classList.contains('active')) return;
+      if (e.target.closest('.input-bar') || e.target.closest('.special-keys-bar')) return;
       e.preventDefault();
+      e.stopImmediatePropagation();
 
+      if (touchStartY === null || !onDataCallback) { dbg('TOUCH: skip (startY=' + touchStartY + ' cb=' + !!onDataCallback + ')'); return; }
+
+      const currentX = e.touches[0].clientX;
       const currentY = e.touches[0].clientY;
       accumulated += touchStartY - currentY;
       touchStartY = currentY;
+      lastTouchX = currentX;
+      lastTouchY = currentY;
 
       const ticks = Math.trunc(accumulated / SCROLL_THRESHOLD);
       if (ticks !== 0) {
         accumulated -= ticks * SCROLL_THRESHOLD;
-        const button = ticks > 0 ? 64 : 65;
+        const { col, row } = clientToCell(lastTouchX, lastTouchY);
+        const seq = scrollSeq(ticks > 0, col, row);
         const count = Math.abs(ticks);
+        dbg('TOUCH: mode=' + mouseMode + ' col=' + col + ' row=' + row + ' dir=' + (ticks > 0 ? 'up' : 'down') + ' n=' + count);
         for (let i = 0; i < count; i++) {
-          onDataCallback('\x1b[<' + button + ';1;1M');
+          onDataCallback(seq);
         }
       }
-    }, { passive: false });
+    }, { passive: false, capture: true });
 
-    container.addEventListener('touchend', () => {
+    document.addEventListener('touchend', () => {
       touchStartY = null;
       accumulated = 0;
-    }, { passive: true });
+    }, { passive: true, capture: true });
+  }
+
+  function setupWheelScroll() {
+    if (!term) return;
+    const el = term.element;
+    if (!el) return;
+
+    el.addEventListener('wheel', (e) => {
+      if (!onDataCallback) return;
+      e.preventDefault();
+      const lines = Math.max(1, Math.abs(Math.round(e.deltaY / 40)));
+      const { col, row } = clientToCell(e.clientX, e.clientY);
+      const seq = scrollSeq(e.deltaY < 0, col, row);
+      for (let i = 0; i < lines; i++) {
+        onDataCallback(seq);
+      }
+    }, { passive: false });
   }
 
   function onInput(callback) {
@@ -113,6 +200,7 @@ const TerminalManager = (() => {
     if (!term) return;
     const bytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
     const text = new TextDecoder().decode(bytes);
+    detectMouseMode(text);
     term.write(text);
   }
 
@@ -130,6 +218,7 @@ const TerminalManager = (() => {
       term.dispose();
       term = null;
       fitAddon = null;
+      mouseMode = 'none';
     }
   }
 
