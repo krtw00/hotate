@@ -24,6 +24,13 @@ export async function handleSSHSession(ws, hostId) {
   const conn = new Client();
   let stream = null;
 
+  // Keepalive: ping every 30s to prevent idle disconnect
+  const pingInterval = setInterval(() => {
+    if (ws.readyState === ws.OPEN) {
+      ws.ping();
+    }
+  }, 30000);
+
   conn.on('ready', () => {
     conn.shell({ term: 'xterm-256color' }, (err, sh) => {
       if (err) {
@@ -92,6 +99,7 @@ export async function handleSSHSession(ws, hostId) {
   });
 
   ws.on('close', () => {
+    clearInterval(pingInterval);
     if (stream) stream.close();
     conn.end();
   });

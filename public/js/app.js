@@ -6,6 +6,10 @@ const App = (() => {
   let ws = null;
   let selectedHostId = null;
   let hosts = [];
+  let connectedHost = null;
+  let reconnecting = false;
+  let reconnectAttempts = 0;
+  let intentionalDisconnect = false;
 
   // DOM elements
   const screenConnect = document.getElementById('screen-connect');
@@ -333,14 +337,21 @@ const App = (() => {
   function startSSH(host) {
     setStatus('Connecting...', 'blue');
     btnConnect.disabled = true;
+    connectedHost = host;
+    intentionalDisconnect = false;
 
+    openWebSocket(host);
+  }
+
+  function openWebSocket(host) {
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${proto}//${location.host}/ws?hostId=${host.id}`;
 
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      // WebSocket connected, waiting for SSH handshake
+      reconnectAttempts = 0;
+      reconnecting = false;
     };
 
     ws.onmessage = (event) => {
@@ -348,16 +359,18 @@ const App = (() => {
 
       switch (msg.type) {
         case 'connected':
-          showTerminal(host);
+          if (!reconnecting) showTerminal(host);
+          reconnecting = false;
           break;
         case 'output':
           TerminalManager.write(msg.payload);
+          break;
+        case 'pong':
           break;
         case 'error':
           setStatus('Error: ' + msg.payload.message, 'red');
           btnConnect.disabled = false;
           if (screenTerminal.classList.contains('active')) {
-            // Show error in terminal too
             alert('SSH Error: ' + msg.payload.message);
             disconnect();
           }
@@ -369,15 +382,36 @@ const App = (() => {
     };
 
     ws.onclose = () => {
-      if (screenTerminal.classList.contains('active')) {
-        disconnect();
+      if (intentionalDisconnect) return;
+      if (screenTerminal.classList.contains('active') && connectedHost) {
+        attemptReconnect();
       }
     };
 
     ws.onerror = () => {
-      setStatus('Connection failed', 'red');
-      btnConnect.disabled = false;
+      if (!reconnecting) {
+        setStatus('Connection failed', 'red');
+        btnConnect.disabled = false;
+      }
     };
+  }
+
+  function attemptReconnect() {
+    const MAX_RECONNECT = 10;
+    if (reconnectAttempts >= MAX_RECONNECT || !connectedHost) {
+      disconnect();
+      return;
+    }
+
+    reconnecting = true;
+    reconnectAttempts++;
+    const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempts - 1), 10000);
+    console.log(`[WS] reconnecting in ${Math.round(delay)}ms (attempt ${reconnectAttempts}/${MAX_RECONNECT})`);
+
+    setTimeout(() => {
+      if (!connectedHost || intentionalDisconnect) return;
+      openWebSocket(connectedHost);
+    }, delay);
   }
 
   function showTerminal(host) {
@@ -419,6 +453,10 @@ const App = (() => {
   }
 
   function disconnect() {
+    intentionalDisconnect = true;
+    connectedHost = null;
+    reconnecting = false;
+    reconnectAttempts = 0;
     if (ws) {
       ws.close();
       ws = null;
@@ -484,7 +522,11 @@ const App = (() => {
   return { connect, disconnect };
 })();
 
-// Service Worker registration
+// Service Worker: 古いSWを一度解除してから再登録（キャッシュ強制更新）
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.getRegistrations().then((regs) => {
+    for (const reg of regs) reg.unregister();
+    caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
+    setTimeout(() => navigator.serviceWorker.register('/sw.js').catch(() => {}), 1000);
+  });
 }
