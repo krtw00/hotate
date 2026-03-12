@@ -12,19 +12,17 @@ services:
       - ${SSH_KEY_DIR:-~/.ssh}:/home/node/.ssh:ro
     labels:
       - "traefik.enable=true"
-      # HTTPS
-      - "traefik.http.routers.webssh.rule=Host(`webssh.local`) || Host(`webssh.codenica.duckdns.org`)"
+      - "traefik.http.routers.webssh.rule=Host(`webssh.codenica.dev`)"
       - "traefik.http.routers.webssh.entrypoints=websecure"
-      - "traefik.http.routers.webssh.tls=true"
+      - "traefik.http.routers.webssh.tls.certresolver=letsencrypt"
       - "traefik.http.services.webssh.loadbalancer.server.port=3000"
-      # HTTP → HTTPS redirect
-      - "traefik.http.routers.webssh-redirect.rule=Host(`webssh.local`) || Host(`webssh.codenica.duckdns.org`)"
-      - "traefik.http.routers.webssh-redirect.entrypoints=web"
-      - "traefik.http.middlewares.webssh-https.redirectscheme.scheme=https"
-      - "traefik.http.routers.webssh-redirect.middlewares=webssh-https"
+      - "traefik.http.routers.webssh-http.rule=Host(`webssh.codenica.dev`)"
+      - "traefik.http.routers.webssh-http.entrypoints=web"
+      - "traefik.http.routers.webssh-http.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
     networks:
-      - traefik
+      - web
 
 networks:
-  traefik:
+  web:
     external: true
