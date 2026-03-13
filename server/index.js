@@ -50,5 +50,5 @@ wss.on('connection', (ws, req) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`WebSSH listening on http://localhost:${PORT}`);
+  console.log(`Hotate listening on http://localhost:${PORT}`);
 });

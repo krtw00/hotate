@@ -1,6 +1,4 @@
 node_modules/
 .env
-data/hosts.json
-superdesign/
-nul
+data/
 docker-compose.override.yml

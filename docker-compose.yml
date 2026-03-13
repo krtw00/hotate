@@ -1,25 +1,25 @@
 services:
-  webssh:
+  hotate:
     build: .
-    container_name: webssh
+    container_name: hotate
     restart: unless-stopped
     environment:
-      - WEBSSH_USER=${WEBSSH_USER:-admin}
-      - WEBSSH_PASS=${WEBSSH_PASS:-changeme}
+      - HOTATE_USER=${HOTATE_USER:-admin}
+      - HOTATE_PASS=${HOTATE_PASS:-changeme}
       - PORT=3000
     volumes:
       - ./data:/app/data
       - ${SSH_KEY_DIR:-~/.ssh}:/home/node/.ssh:ro
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.webssh.rule=Host(`webssh.codenica.dev`)"
-      - "traefik.http.routers.webssh.entrypoints=websecure"
-      - "traefik.http.routers.webssh.tls.certresolver=letsencrypt"
-      - "traefik.http.services.webssh.loadbalancer.server.port=3000"
-      - "traefik.http.routers.webssh-http.rule=Host(`webssh.codenica.dev`)"
-      - "traefik.http.routers.webssh-http.entrypoints=web"
-      - "traefik.http.routers.webssh-http.middlewares=webssh-redirect"
-      - "traefik.http.middlewares.webssh-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.hotate.rule=Host(`${APP_DOMAIN:-hotate.example.com}`)"
+      - "traefik.http.routers.hotate.entrypoints=websecure"
+      - "traefik.http.routers.hotate.tls.certresolver=letsencrypt"
+      - "traefik.http.services.hotate.loadbalancer.server.port=3000"
+      - "traefik.http.routers.hotate-http.rule=Host(`${APP_DOMAIN:-hotate.example.com}`)"
+      - "traefik.http.routers.hotate-http.entrypoints=web"
+      - "traefik.http.routers.hotate-http.middlewares=hotate-redirect"
+      - "traefik.http.middlewares.hotate-redirect.redirectscheme.scheme=https"
     networks:
       - web
 

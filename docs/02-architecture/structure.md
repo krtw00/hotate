@@ -2,7 +2,7 @@
 depends_on:
   - ./context.md
 tags: [architecture, c4, container, components]
-ai_summary: "WebSSHの主要コンポーネント（フロントエンド3モジュール + バックエンド4モジュール）の構成・責務・通信方式を定義"
+ai_summary: "Hotateの主要コンポーネント（フロントエンド3モジュール + バックエンド4モジュール）の構成・責務・通信方式を定義"
 ---
 
 # 主要コンポーネント構成
@@ -10,7 +10,7 @@ ai_summary: "WebSSHの主要コンポーネント（フロントエンド3モジ
 > Status: Draft
 > 最終更新: 2026-01-28
 
-本ドキュメントは、WebSSHの主要コンポーネントとその関係を定義する（C4 Container相当）。
+本ドキュメントは、Hotateの主要コンポーネントとその関係を定義する（C4 Container相当）。
 
 ---
 
@@ -114,7 +114,7 @@ flowchart TB
 | 技術 | Express middleware |
 | 入力 | Authorizationヘッダー |
 | 出力 | 認証成功→next() / 認証失敗→401レスポンス |
-| 依存 | 環境変数（WEBSSH_USER, WEBSSH_PASS） |
+| 依存 | 環境変数（HOTATE_USER, HOTATE_PASS） |
 
 ### config.js
 
@@ -153,7 +153,7 @@ flowchart TB
 ## ディレクトリ構成
 
 ```
-webssh/
+hotate/
 ├── server/
 │   ├── index.js          # Expressサーバー + WebSocket
 │   ├── auth.js           # Basic認証ミドルウェア

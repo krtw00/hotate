@@ -2,7 +2,7 @@
 depends_on:
   - ../02-architecture/structure.md
 tags: [details, api, endpoints, rest, websocket]
-ai_summary: "WebSSHのREST API（ホストCRUD）とWebSocket API（SSH通信）のエンドポイント仕様を定義"
+ai_summary: "HotateのREST API（ホストCRUD）とWebSocket API（SSH通信）のエンドポイント仕様を定義"
 ---
 
 # API設計
@@ -10,7 +10,7 @@ ai_summary: "WebSSHのREST API（ホストCRUD）とWebSocket API（SSH通信）
 > Status: Draft
 > 最終更新: 2026-01-28
 
-本ドキュメントは、WebSSHのREST APIとWebSocket APIを定義する。
+本ドキュメントは、HotateのREST APIとWebSocket APIを定義する。
 
 ---
 
@@ -51,18 +51,18 @@ ai_summary: "WebSSHのREST API（ホストCRUD）とWebSocket API（SSH通信）
 [
   {
     "id": "550e8400-e29b-41d4-a716-446655440000",
-    "name": "minipc",
-    "host": "192.168.1.100",
+    "name": "my-server",
+    "host": "192.0.2.1",
     "port": 22,
-    "username": "iguchi",
+    "username": "user",
     "authType": "password"
   },
   {
     "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-    "name": "KAGOYA VPS",
-    "host": "133.18.120.134",
+    "name": "Production VPS",
+    "host": "198.51.100.10",
     "port": 22,
-    "username": "clawdbot",
+    "username": "deploy",
     "authType": "key",
     "keyPath": "~/.ssh/id_ed25519"
   }
@@ -185,7 +185,7 @@ ws://host:port/ws?hostId={uuid}
 |------|------|
 | 方式 | HTTP Basic認証 |
 | ヘッダー | `Authorization: Basic {base64(user:pass)}` |
-| 環境変数 | `WEBSSH_USER`, `WEBSSH_PASS` |
+| 環境変数 | `HOTATE_USER`, `HOTATE_PASS` |
 | 適用範囲 | REST API全エンドポイント。WebSocketはHTTPアップグレード時に認証 |
 
 ### エラーレスポンス（REST API）

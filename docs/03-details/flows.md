@@ -2,7 +2,7 @@
 depends_on:
   - ../02-architecture/structure.md
 tags: [details, flows, sequence, ssh]
-ai_summary: "WebSSHの主要フロー（SSH接続確立・コマンド送信・IME入力・切断）のシーケンス図と処理ステップを定義"
+ai_summary: "Hotateの主要フロー（SSH接続確立・コマンド送信・IME入力・切断）のシーケンス図と処理ステップを定義"
 ---
 
 # 主要フロー
@@ -10,7 +10,7 @@ ai_summary: "WebSSHの主要フロー（SSH接続確立・コマンド送信・I
 > Status: Draft
 > 最終更新: 2026-01-28
 
-本ドキュメントは、WebSSHの主要な処理フローを定義する。
+本ドキュメントは、Hotateの主要な処理フローを定義する。
 
 ---
 

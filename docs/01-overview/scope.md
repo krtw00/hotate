@@ -2,7 +2,7 @@
 depends_on:
   - ./goals.md
 tags: [overview, scope, phases]
-ai_summary: "WebSSHの対象範囲・対象外・フェーズ分割（MVP/将来）・前提条件・制約を定義"
+ai_summary: "Hotateの対象範囲・対象外・フェーズ分割（MVP/将来）・前提条件・制約を定義"
 ---
 
 # スコープ・対象外
@@ -10,7 +10,7 @@ ai_summary: "WebSSHの対象範囲・対象外・フェーズ分割（MVP/将来
 > Status: Draft
 > 最終更新: 2026-01-28
 
-本ドキュメントは、WebSSHプロジェクトのスコープ（範囲）を明確にする。
+本ドキュメントは、Hotateプロジェクトのスコープ（範囲）を明確にする。
 
 ---
 
@@ -29,7 +29,7 @@ ai_summary: "WebSSHの対象範囲・対象外・フェーズ分割（MVP/将来
 | ユーザー | 個人開発者 | Basic認証による単一ユーザーアクセス |
 | プラットフォーム | モバイルブラウザ | iOS Safari, Android Chromeを主対象 |
 | プラットフォーム | デスクトップブラウザ | Chrome, Firefox（副次対象） |
-| インフラ | Docker + Traefik | minipcへのコンテナデプロイ |
+| インフラ | Docker + Traefik | サーバーへのコンテナデプロイ |
 
 ### 対象外
 
@@ -81,8 +81,8 @@ flowchart LR
 | 前提 | 説明 |
 |------|------|
 | Node.js 22+ | crypto.randomUUID()、--watchフラグを使用 |
-| Docker環境 | minipcにDockerとTraefikが稼働済み |
-| Tailscale VPN | minipcへのアクセス経路が確保済み |
+| Docker環境 | サーバーにDockerとTraefikが稼働済み |
+| Tailscale VPN | サーバーへのアクセス経路が確保済み |
 | TLS終端 | TraefikがTLSを処理（Basic認証の安全性確保） |
 
 ---

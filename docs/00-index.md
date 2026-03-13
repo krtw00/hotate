@@ -1,7 +1,7 @@
 ---
 depends_on: []
 tags: [navigation, index]
-ai_summary: "WebSSH全ドキュメントへのナビゲーションハブ"
+ai_summary: "Hotate全ドキュメントへのナビゲーションハブ"
 ---
 
 # ドキュメントインデックス
@@ -9,7 +9,7 @@ ai_summary: "WebSSH全ドキュメントへのナビゲーションハブ"
 > Status: Active
 > 最終更新: 2026-01-28
 
-本ドキュメントは、WebSSHプロジェクトの設計ドキュメント全体のナビゲーションを提供する。
+本ドキュメントは、Hotateプロジェクトの設計ドキュメント全体のナビゲーションを提供する。
 
 ---
 

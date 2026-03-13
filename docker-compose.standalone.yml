@@ -1,0 +1,14 @@
+services:
+  hotate:
+    build: .
+    container_name: hotate
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - HOTATE_USER=${HOTATE_USER:-admin}
+      - HOTATE_PASS=${HOTATE_PASS:-changeme}
+      - PORT=3000
+    volumes:
+      - ./data:/app/data
+      - ${SSH_KEY_DIR:-~/.ssh}:/home/node/.ssh:ro

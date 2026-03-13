@@ -2,7 +2,7 @@
 depends_on:
   - ../01-overview/summary.md
 tags: [architecture, c4, context, boundary]
-ai_summary: "WebSSHのシステム境界と外部連携（ブラウザ→Expressサーバー→SSHサーバー）をC4 Context図で定義"
+ai_summary: "Hotateのシステム境界と外部連携（ブラウザ→Expressサーバー→SSHサーバー）をC4 Context図で定義"
 ---
 
 # システム境界・外部連携
@@ -10,7 +10,7 @@ ai_summary: "WebSSHのシステム境界と外部連携（ブラウザ→Express
 > Status: Draft
 > 最終更新: 2026-01-28
 
-本ドキュメントは、WebSSHのシステム境界と外部システムとの連携を定義する（C4 Context相当）。
+本ドキュメントは、Hotateのシステム境界と外部システムとの連携を定義する（C4 Context相当）。
 
 ---
 
@@ -22,11 +22,11 @@ flowchart TB
         U1[開発者<br/>モバイル/PCブラウザ]
     end
 
-    S[WebSSH<br/>ブラウザベースSSHクライアント]
+    S[Hotate<br/>ブラウザベースSSHクライアント]
 
     subgraph External[外部システム]
-        SSH1[minipc<br/>ホームサーバー]
-        SSH2[KAGOYA VPS<br/>リモートサーバー]
+        SSH1[my-server<br/>ホームサーバー]
+        SSH2[VPS<br/>リモートサーバー]
         SSH3[その他SSHサーバー]
     end
 
@@ -59,7 +59,7 @@ flowchart TB
 
 | 項目 | 内容 |
 |------|------|
-| 概要 | SSH接続先のLinuxサーバー（minipc, KAGOYA VPS等） |
+| 概要 | SSH接続先のLinuxサーバー |
 | 連携方式 | SSH2プロトコル（ssh2ライブラリ経由） |
 | 連携データ | 認証情報（パスワード/秘密鍵）、シェルストリーム（stdin/stdout） |
 | 連携頻度 | リアルタイム（常時双方向ストリーム） |

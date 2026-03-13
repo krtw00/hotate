@@ -1,6 +1,6 @@
 {
-  "name": "WebSSH",
-  "short_name": "WebSSH",
+  "name": "Hotate",
+  "short_name": "Hotate",
   "description": "Browser-based SSH client with IME support",
   "start_url": "/",
   "display": "standalone",

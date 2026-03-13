@@ -1,20 +1,20 @@
 /**
  * Basic認証ミドルウェア
- * 環境変数 WEBSSH_USER / WEBSSH_PASS で認証情報を設定する。
+ * 環境変数 HOTATE_USER / HOTATE_PASS で認証情報を設定する。
  */
 
-const REALM = 'WebSSH';
+const REALM = 'Hotate';
 
 // SW/PWA files must be accessible without auth
 // (Service Worker fetch calls don't carry Basic Auth credentials)
 const AUTH_EXEMPT = ['/sw.js', '/manifest.json'];
 
 export function basicAuth(req, res, next) {
-  const user = process.env.WEBSSH_USER;
-  const pass = process.env.WEBSSH_PASS;
+  const user = process.env.HOTATE_USER;
+  const pass = process.env.HOTATE_PASS;
 
   if (!user || !pass) {
-    console.warn('WEBSSH_USER/WEBSSH_PASS not set — auth disabled');
+    console.warn('HOTATE_USER/HOTATE_PASS not set — auth disabled');
     return next();
   }
 
@@ -43,8 +43,8 @@ export function basicAuth(req, res, next) {
  * WebSocketアップグレード時のBasic認証チェック
  */
 export function authenticateUpgrade(req) {
-  const user = process.env.WEBSSH_USER;
-  const pass = process.env.WEBSSH_PASS;
+  const user = process.env.HOTATE_USER;
+  const pass = process.env.HOTATE_PASS;
 
   if (!user || !pass) return true;
 
