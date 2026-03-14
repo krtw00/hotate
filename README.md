@@ -12,6 +12,7 @@ Mobile-first web-based SSH client with full IME (Input Method Editor) support. C
 - **Copy & paste** -- Clipboard integration for both desktop and mobile
 - **PWA support** -- Add to home screen for a native app-like experience
 - **Basic auth gate** -- Protect the app with a username/password
+- **tmux integration** -- Auto-detects `tmux attach`; shows a window tab bar with tap-to-switch and a detach button
 - **No build step** -- Vanilla JS + CDN; edit and reload
 
 ## Screenshots
