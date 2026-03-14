@@ -10,6 +10,8 @@ const App = (() => {
   let reconnecting = false;
   let reconnectAttempts = 0;
   let intentionalDisconnect = false;
+  let tmuxPollTimer = null;
+  let tmuxWindows = [];
 
   // DOM elements
   const screenConnect = document.getElementById('screen-connect');
@@ -367,6 +369,16 @@ const App = (() => {
           break;
         case 'pong':
           break;
+        case 'tmux-result':
+          handleTmuxResult(msg.id, msg.payload);
+          break;
+        case 'tmux-attached':
+          onTmuxAttached();
+          break;
+        case 'tmux-detached':
+          stopTmuxPoll();
+          TerminalManager.fit();
+          break;
         case 'error':
           setStatus('Error: ' + msg.payload.message, 'red');
           btnConnect.disabled = false;
@@ -450,6 +462,7 @@ const App = (() => {
 
     // Focus terminal for direct keyboard input
     TerminalManager.focus();
+
   }
 
   function disconnect() {
@@ -457,6 +470,7 @@ const App = (() => {
     connectedHost = null;
     reconnecting = false;
     reconnectAttempts = 0;
+    stopTmuxPoll();
     if (ws) {
       ws.close();
       ws = null;
@@ -491,6 +505,115 @@ const App = (() => {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+  }
+
+  // ===== tmux tab management =====
+  const tmuxTabsEl = document.getElementById('tmux-tabs');
+  let tmuxSession = null; // detected tmux session name
+
+  function onTmuxAttached() {
+    if (tmuxPollTimer) return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    // Get attached session name
+    ws.send(JSON.stringify({
+      type: 'tmux-query',
+      id: 'sessions',
+      payload: "tmux list-sessions -F '#{session_name}:#{session_attached}'",
+    }));
+  }
+
+  function stopTmuxPoll() {
+    if (tmuxPollTimer) { clearInterval(tmuxPollTimer); tmuxPollTimer = null; }
+    tmuxSession = null;
+    tmuxWindows = [];
+    if (tmuxTabsEl) { tmuxTabsEl.innerHTML = ''; tmuxTabsEl.classList.add('hidden'); }
+  }
+
+  function queryTmuxWindows() {
+    if (!ws || ws.readyState !== WebSocket.OPEN || !tmuxSession) return;
+    ws.send(JSON.stringify({
+      type: 'tmux-query',
+      id: 'windows',
+      payload: `tmux list-windows -t ${tmuxSession} -F '#{window_index}:#{window_name}:#{window_active}'`,
+    }));
+  }
+
+  function handleTmuxResult(id, payload) {
+    const stdout = (payload.stdout || '').trim();
+
+    if (payload.error || !stdout) {
+      if (tmuxSession) {
+        stopTmuxPoll();
+        TerminalManager.fit();
+      }
+      return;
+    }
+
+    if (id === 'sessions') {
+      // Parse "name:attached" lines, pick attached session
+      const sessions = stdout.split('\n').filter(Boolean).map(line => {
+        const idx = line.lastIndexOf(':');
+        return { name: line.substring(0, idx), attached: line.substring(idx + 1) === '1' };
+      });
+      const target = sessions.find(s => s.attached) || sessions[0];
+      if (target) {
+        tmuxSession = target.name;
+        queryTmuxWindows();
+        tmuxPollTimer = setInterval(queryTmuxWindows, 3000);
+      }
+    } else if (id === 'windows') {
+      // Parse "index:name:active" lines
+      const lines = stdout.split('\n').filter(Boolean);
+      tmuxWindows = lines.map(line => {
+        const parts = line.split(':');
+        return {
+          index: parseInt(parts[0], 10),
+          name: parts[1] || '',
+          active: parts[2] === '1',
+        };
+      });
+      renderTmuxTabs();
+    }
+    // id === 'switch' — ignore, next poll will update
+  }
+
+  function renderTmuxTabs() {
+    if (!tmuxTabsEl) return;
+    if (tmuxWindows.length === 0) {
+      tmuxTabsEl.classList.add('hidden');
+      return;
+    }
+
+    tmuxTabsEl.classList.remove('hidden');
+    tmuxTabsEl.innerHTML = '';
+
+    tmuxWindows.forEach(win => {
+      const btn = document.createElement('button');
+      btn.className = 'tmux-tab' + (win.active ? ' active' : '');
+      btn.innerHTML = `<span class="tmux-tab-index">${win.index}</span>${escapeHtml(win.name)}`;
+      btn.addEventListener('click', () => selectTmuxWindow(win.index));
+      tmuxTabsEl.appendChild(btn);
+    });
+
+    // Detach button
+    const detachBtn = document.createElement('button');
+    detachBtn.className = 'tmux-tab tmux-detach-btn';
+    detachBtn.textContent = 'detach';
+    detachBtn.addEventListener('click', () => {
+      // Send Ctrl+B d through PTY
+      sendInput(btoa('\x02d'));
+    });
+    tmuxTabsEl.appendChild(detachBtn);
+
+    TerminalManager.fit();
+  }
+
+  function selectTmuxWindow(index) {
+    if (!ws || ws.readyState !== WebSocket.OPEN || !tmuxSession) return;
+    // Send Ctrl+B then window index through the PTY (tmux prefix + number)
+    const prefix = '\x02'; // Ctrl+B (default tmux prefix)
+    sendInput(btoa(prefix + String(index)));
+    setTimeout(queryTmuxWindows, 300);
   }
 
   // ===== Viewport resize (virtual keyboard) =====

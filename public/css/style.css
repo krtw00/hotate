@@ -336,6 +336,49 @@ body {
 }
 .btn-disconnect:hover { color: #f85149; background: rgba(248, 81, 73, 0.1); }
 
+/* tmux tabs */
+.tmux-tabs-bar {
+  background: #0d1117;
+  border-bottom: 1px solid #1c2330;
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  flex-shrink: 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tmux-tabs-bar::-webkit-scrollbar { display: none; }
+.tmux-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #6e7681;
+  background: transparent;
+  border: none;
+  border-right: 1px solid #1c2330;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: color 0.1s, background 0.1s;
+}
+.tmux-tab:hover { color: #b1bac4; background: #161b22; }
+.tmux-tab.active {
+  color: #e6edf3;
+  background: #020408;
+  border-bottom: 2px solid #3b82f6;
+  margin-bottom: -1px;
+}
+.tmux-tab-index {
+  color: #484f58;
+  font-size: 10px;
+}
+.tmux-tab.active .tmux-tab-index { color: #6e7681; }
+.tmux-detach-btn { margin-left: auto; color: #f85149; border-right: none; }
+.tmux-detach-btn:hover { color: #ffa198; background: rgba(248, 81, 73, 0.1); }
+
 .terminal-main {
   flex: 1;
   background: #020408;

@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
-    <link rel="stylesheet" href="/css/style.css?v=2">
+    <link rel="stylesheet" href="/css/style.css?v=4">
     <script>
     // Pull-to-refresh完全抑止（最優先captureフェーズ）
     document.addEventListener('touchmove', function(e) {
@@ -153,6 +153,9 @@
             </button>
         </header>
 
+        <!-- tmux tabs -->
+        <div id="tmux-tabs" class="tmux-tabs-bar hidden"></div>
+
         <!-- Terminal -->
         <main id="terminal-container" class="terminal-main"></main>
 
@@ -255,6 +258,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
     <script src="/js/terminal.js?v=10"></script>
     <script src="/js/input.js?v=5"></script>
-    <script src="/js/app.js?v=5"></script>
+    <script src="/js/app.js?v=16"></script>
 </body>
 </html>

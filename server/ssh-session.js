@@ -23,6 +23,7 @@ export async function handleSSHSession(ws, hostId) {
 
   const conn = new Client();
   let stream = null;
+  let tmuxDetected = false;
 
   // Keepalive: ping every 30s to prevent idle disconnect
   const pingInterval = setInterval(() => {
@@ -53,6 +54,18 @@ export async function handleSSHSession(ws, hostId) {
             type: 'output',
             payload: data.toString('base64'),
           }));
+
+          // Detect tmux attach/detach via alternate screen buffer sequences
+          const text = data.toString();
+          if (!tmuxDetected && text.includes('\x1b[?1049h')) {
+            tmuxDetected = true;
+
+            ws.send(JSON.stringify({ type: 'tmux-attached' }));
+          } else if (tmuxDetected && text.includes('\x1b[?1049l')) {
+            tmuxDetected = false;
+
+            ws.send(JSON.stringify({ type: 'tmux-detached' }));
+          }
         }
       });
 
@@ -92,6 +105,32 @@ export async function handleSSHSession(ws, hostId) {
       } else if (msg.type === 'resize' && stream) {
         const { cols, rows } = msg.payload;
         stream.setWindow(rows, cols, 0, 0);
+      } else if (msg.type === 'tmux-query') {
+        // Execute tmux command via separate exec channel (not through the PTY)
+        const cmd = msg.payload;
+        const queryId = msg.id || '';
+        const allowed = ['tmux list-windows', 'tmux list-sessions', 'tmux select-window'];
+        if (!allowed.some(prefix => cmd.startsWith(prefix))) {
+          ws.send(JSON.stringify({ type: 'tmux-result', id: queryId, payload: { error: 'Command not allowed' } }));
+          return;
+        }
+        conn.exec(cmd, (err, ch) => {
+          if (err) {
+            ws.send(JSON.stringify({ type: 'tmux-result', id: queryId, payload: { error: err.message } }));
+            return;
+          }
+          let stdout = '';
+          let stderr = '';
+          ch.on('data', (data) => { stdout += data.toString(); });
+          ch.stderr.on('data', (data) => { stderr += data.toString(); });
+          ch.on('close', () => {
+            ws.send(JSON.stringify({
+              type: 'tmux-result',
+              id: queryId,
+              payload: { stdout: stdout.trimEnd(), stderr: stderr.trimEnd() },
+            }));
+          });
+        });
       }
     } catch {
       // ignore malformed messages
