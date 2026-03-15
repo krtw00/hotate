@@ -60,6 +60,7 @@ const TerminalManager = (() => {
     setupSelectMode();
     setupTouchScroll();
     setupWheelScroll();
+    setupAutoClipboard();
 
     return term;
   }
@@ -292,12 +293,28 @@ const TerminalManager = (() => {
     if (!el) return;
     el.addEventListener("wheel", (e) => {
       if (!onDataCallback) return;
+      // Shift+wheel: use xterm.js native scrollback (bypass tmux)
+      if (e.shiftKey) return;
       e.preventDefault();
       const lines = Math.max(1, Math.abs(Math.round(e.deltaY / 40)));
       const { col, row } = clientToCell(e.clientX, e.clientY);
       const seq = scrollSeq(e.deltaY < 0, col, row);
       for (let i = 0; i < lines; i++) { onDataCallback(seq); }
     }, { passive: false });
+  }
+
+  function setupAutoClipboard() {
+    if (!term) return;
+    // Auto-copy on selection (works for both normal and Shift+drag in tmux mouse mode)
+    term.onSelectionChange(() => {
+      if (!term.hasSelection()) return;
+      const sel = term.getSelection();
+      if (sel) {
+        navigator.clipboard.writeText(sel).then(() => {
+          showToast("Copied");
+        }).catch(() => {});
+      }
+    });
   }
 
   function onInput(callback) { onDataCallback = callback; }
