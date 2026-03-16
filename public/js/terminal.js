@@ -244,7 +244,7 @@ const TerminalManager = (() => {
     document.addEventListener("touchstart", (e) => {
       const screen = document.getElementById("screen-terminal");
       if (!screen || !screen.classList.contains("active")) return;
-      if (e.target.closest(".input-bar") || e.target.closest(".special-keys-bar")) return;
+      if (e.target.closest(".input-bar") || e.target.closest(".special-keys-bar") || e.target.closest(".tmux-tabs-bar")) return;
       if (selectMode) return;
       if (e.touches.length === 1) {
         touchStartY = e.touches[0].clientY;
@@ -257,7 +257,7 @@ const TerminalManager = (() => {
     document.addEventListener("touchmove", (e) => {
       const screen = document.getElementById("screen-terminal");
       if (!screen || !screen.classList.contains("active")) return;
-      if (e.target.closest(".input-bar") || e.target.closest(".special-keys-bar")) return;
+      if (e.target.closest(".input-bar") || e.target.closest(".special-keys-bar") || e.target.closest(".tmux-tabs-bar")) return;
       if (selectMode) return;
       e.preventDefault();
       e.stopImmediatePropagation();
