@@ -600,8 +600,10 @@ const App = (() => {
     detachBtn.className = 'tmux-tab tmux-detach-btn';
     detachBtn.textContent = 'detach';
     detachBtn.addEventListener('click', () => {
-      // Send Ctrl+B d through PTY
+      // Send Ctrl+B d through PTY and immediately clean up tabs
       sendInput(btoa('\x02d'));
+      stopTmuxPoll();
+      TerminalManager.fit();
     });
     tmuxTabsEl.appendChild(detachBtn);
 
