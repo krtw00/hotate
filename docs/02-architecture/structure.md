@@ -70,11 +70,12 @@ flowchart TB
 
 | 項目 | 内容 |
 |------|------|
-| 責務 | SPA画面遷移（接続画面 ↔ ターミナル画面）、WebSocket接続管理、接続状態管理 |
+| 責務 | SPA画面遷移（接続画面 ↔ ターミナル画面）、WebSocket接続管理、接続状態管理、tmuxタブ管理 |
 | 技術 | Vanilla JS（DOM display切替によるSPA） |
-| 入力 | ユーザー操作（ホスト選択、接続/切断）、input.jsからの入力データ |
-| 出力 | WebSocketメッセージ送信、terminal.jsへの表示指示 |
+| 入力 | ユーザー操作（ホスト選択、接続/切断）、input.jsからの入力データ、tmux-attached/detachedイベント |
+| 出力 | WebSocketメッセージ送信、terminal.jsへの表示指示、tmuxタブバーの描画 |
 | 依存 | terminal.js, input.js |
+| tmux関連 | tmuxPollTimer（3秒ポーリング）、queryTmuxWindows()、renderTmuxTabs()、selectTmuxWindow() |
 
 ### terminal.js
 
@@ -130,11 +131,12 @@ flowchart TB
 
 | 項目 | 内容 |
 |------|------|
-| 責務 | WebSocketとSSH2ストリーム間の双方向データ変換 |
+| 責務 | WebSocketとSSH2ストリーム間の双方向データ変換、tmuxクエリ実行、alternate screen buffer検出 |
 | 技術 | ws, ssh2 |
-| 入力 | WebSocketメッセージ（type: input / resize） |
-| 出力 | WebSocketメッセージ（type: output / error / exit） |
+| 入力 | WebSocketメッセージ（type: input / resize / tmux-query） |
+| 出力 | WebSocketメッセージ（type: output / error / exit / tmux-result / tmux-attached / tmux-detached） |
 | 依存 | SSHサーバー |
+| tmux関連 | tmux-queryはconn.exec()で実行（PTYとは別チャネル）。alternate screen bufferシーケンス検出でtmux-attached/tmux-detachedを通知 |
 
 ---
 

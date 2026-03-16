@@ -165,6 +165,11 @@ ws://host:port/ws?hostId={uuid}
 |------|---------|------|
 | `input` | `string` (Base64) | ユーザー入力をBase64エンコードしたもの |
 | `resize` | `{ cols: number, rows: number }` | ターミナルリサイズ通知 |
+| `tmux-query` | `string` (tmuxコマンド) | tmuxコマンドをexecチャネルで実行。`id`フィールド必須。許可コマンド: `tmux list-windows`, `tmux list-sessions`, `tmux select-window` |
+
+```json
+{ "type": "tmux-query", "id": "<queryId>", "payload": "tmux list-windows -F '#{window_index} #{window_name} #{window_active}'" }
+```
 
 ### サーバー → クライアント
 
@@ -174,6 +179,17 @@ ws://host:port/ws?hostId={uuid}
 | `connected` | `{ host: string, port: number }` | SSH接続成功通知 |
 | `error` | `{ message: string }` | エラー通知（認証失敗、接続拒否等） |
 | `exit` | `{ code: number }` | SSH接続終了通知 |
+| `tmux-result` | `{ stdout: string, stderr: string }` or `{ error: string }` | tmux-queryの実行結果。`id`フィールドでリクエストと対応 |
+| `tmux-attached` | なし | alternate screen bufferへの遷移を検出（tmux attach相当） |
+| `tmux-detached` | なし | alternate screen bufferからの離脱を検出（tmux detach相当） |
+
+```json
+{ "type": "tmux-result", "id": "<queryId>", "payload": { "stdout": "0 zsh 1\n1 vim 0\n", "stderr": "" } }
+```
+
+```json
+{ "type": "tmux-attached" }
+```
 
 ---
 

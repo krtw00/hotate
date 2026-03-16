@@ -22,6 +22,7 @@ ai_summary: "Hotateの主要フロー（SSH接続確立・コマンド送信・I
 | F002 | コマンド送信 | 入力バーからの文字列→Base64→WebSocket→SSH |
 | F003 | IME入力 | 日本語入力のcomposition追跡→確定後に送信 |
 | F004 | 切断 | Disconnectボタン→SSH/WebSocket切断→画面遷移 |
+| F005 | tmux タブ管理 | tmux attach検出→ウィンドウタブ表示→切替・デタッチ操作 |
 
 ---
 
@@ -225,6 +226,80 @@ sequenceDiagram
 | 3 | SSHクローズ | ssh-session.js | SSHストリーム・接続をクローズ |
 | 4 | リソース解放 | ブラウザ | xterm.jsインスタンスを破棄 |
 | 5 | 画面遷移 | app.js | 接続画面を再表示 |
+
+---
+
+### F005: tmux タブ管理
+
+| 項目 | 内容 |
+|------|------|
+| 概要 | SSH出力のalternate screen bufferシーケンスを検出してtmux attach状態を認識し、ウィンドウ一覧をタブバーで表示・操作するフロー |
+| トリガー | SSH出力にalternate screen bufferシーケンスが検出される |
+| アクター | ssh-session.js（検出）、app.js（UI管理） |
+| 前提条件 | SSH接続が確立済み |
+| 事後条件 | tmuxウィンドウのタブバーが表示され、タップで切替・デタッチが可能 |
+
+#### シーケンス図
+
+```mermaid
+sequenceDiagram
+    participant SSH as SSHストリーム
+    participant SESS as ssh-session.js
+    participant WS as WebSocket
+    participant APP as app.js
+
+    SSH-->>SESS: alternate screen buffer ON シーケンス
+    SESS-->>WS: { type: "tmux-attached" }
+    WS-->>APP: tmux-attached
+    APP->>WS: { type: "tmux-query", id: "q1", payload: "tmux list-windows ..." }
+    WS->>SESS: tmux-query
+    SESS->>SSH: conn.exec("tmux list-windows ...")
+    SSH-->>SESS: stdout
+    SESS-->>WS: { type: "tmux-result", id: "q1", payload: { stdout, stderr } }
+    WS-->>APP: tmux-result
+    APP->>APP: renderTmuxTabs()
+
+    loop 3秒ポーリング
+        APP->>WS: { type: "tmux-query", ... }
+        WS-->>APP: { type: "tmux-result", ... }
+        APP->>APP: renderTmuxTabs()
+    end
+
+    alt ウィンドウ切替
+        APP->>WS: { type: "input", payload: "Ctrl+B → index" }
+        Note right of APP: PTY経由で送信
+    end
+
+    alt デタッチ
+        APP->>WS: { type: "input", payload: "Ctrl+B d" }
+        SSH-->>SESS: alternate screen buffer OFF シーケンス
+        SESS-->>WS: { type: "tmux-detached" }
+        WS-->>APP: tmux-detached
+        APP->>APP: ポーリング停止、タブバー非表示
+    end
+```
+
+#### 処理ステップ
+
+| # | 処理 | 担当 | 説明 |
+|---|------|------|------|
+| 1 | attach検出 | ssh-session.js | SSH出力のalternate screen bufferシーケンスを検出し、tmux-attachedを送信 |
+| 2 | セッション確認 | app.js | tmux-queryでlist-sessionsを実行し、tmuxセッションの存在を確認 |
+| 3 | ウィンドウ一覧取得 | app.js | tmux-queryでlist-windowsを実行 |
+| 4 | タブバー描画 | app.js | renderTmuxTabs()でウィンドウタブを`#tmux-tabs`に描画 |
+| 5 | ポーリング開始 | app.js | tmuxPollTimerで3秒ごとにウィンドウ一覧を再取得・再描画 |
+| 6 | ウィンドウ切替 | app.js | selectTmuxWindow()でPTY経由Ctrl+B → ウィンドウインデックスを送信 |
+| 7 | デタッチ | app.js | PTY経由でCtrl+B d を送信 |
+| 8 | detach検出 | ssh-session.js | alternate screen buffer OFFシーケンスを検出し、tmux-detachedを送信 |
+| 9 | クリーンアップ | app.js | ポーリング停止、タブバー非表示 |
+
+#### エラーケース
+
+| エラー | 条件 | 対応 |
+|--------|------|------|
+| tmux未インストール | tmux-queryでcommand not found | タブバーを表示せずサイレントに無視 |
+| セッションなし | list-sessionsが空 | タブバーを表示しない |
+| クエリタイムアウト | execチャネルが応答しない | ポーリングを継続し次回リトライ |
 
 ---
 

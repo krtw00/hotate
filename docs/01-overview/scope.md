@@ -62,6 +62,7 @@ flowchart LR
 | xterm.jsターミナル | CDN読み込みによるターミナル表示 |
 | IME対応入力バー | compositionイベントによる日本語入力対応 |
 | 特殊キーツールバー | Tab, Ctrl+C等のソフトウェアキー |
+| tmux タブ管理 | tmux attach自動検出、ウィンドウタブ表示・切替、デタッチ |
 | PWA対応 | manifest.json + Service Worker |
 | Docker化 | node:22-alpine + docker-compose + Traefik |
 
