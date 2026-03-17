@@ -251,23 +251,22 @@ sequenceDiagram
     SSH-->>SESS: alternate screen buffer ON シーケンス
     SESS-->>WS: { type: "tmux-attached" }
     WS-->>APP: tmux-attached
-    APP->>WS: { type: "tmux-query", id: "q1", payload: "tmux list-windows ..." }
+    APP->>WS: { type: "tmux-query", id: "q1", payload: { action: "list-windows", session: "main" } }
     WS->>SESS: tmux-query
-    SESS->>SSH: conn.exec("tmux list-windows ...")
+    SESS->>SSH: conn.exec(server-built tmux command)
     SSH-->>SESS: stdout
     SESS-->>WS: { type: "tmux-result", id: "q1", payload: { stdout, stderr } }
     WS-->>APP: tmux-result
     APP->>APP: renderTmuxTabs()
 
     loop 3秒ポーリング
-        APP->>WS: { type: "tmux-query", ... }
+        APP->>WS: { type: "tmux-query", payload: { action: "list-windows", session: "main" } }
         WS-->>APP: { type: "tmux-result", ... }
         APP->>APP: renderTmuxTabs()
     end
 
     alt ウィンドウ切替
-        APP->>WS: { type: "input", payload: "Ctrl+B → index" }
-        Note right of APP: PTY経由で送信
+        APP->>WS: { type: "tmux-query", payload: { action: "select-window", session: "main", index: 2 } }
     end
 
     alt デタッチ
@@ -288,7 +287,7 @@ sequenceDiagram
 | 3 | ウィンドウ一覧取得 | app.js | tmux-queryでlist-windowsを実行 |
 | 4 | タブバー描画 | app.js | renderTmuxTabs()でウィンドウタブを`#tmux-tabs`に描画 |
 | 5 | ポーリング開始 | app.js | tmuxPollTimerで3秒ごとにウィンドウ一覧を再取得・再描画 |
-| 6 | ウィンドウ切替 | app.js | selectTmuxWindow()でPTY経由Ctrl+B → ウィンドウインデックスを送信 |
+| 6 | ウィンドウ切替 | app.js | selectTmuxWindow()でtmux-query `select-window` を送信 |
 | 7 | デタッチ | app.js | PTY経由でCtrl+B d を送信 |
 | 8 | detach検出 | ssh-session.js | alternate screen buffer OFFシーケンスを検出し、tmux-detachedを送信 |
 | 9 | クリーンアップ | app.js | ポーリング停止、タブバー非表示 |

@@ -37,6 +37,8 @@ docker compose up -d
 
 Access via `http://localhost:3000` (standalone) or your configured domain.
 
+PWA install/offline support is currently disabled while the cache strategy is being reworked.
+
 ## Environment Variables
 
 | Variable | Default | Description |

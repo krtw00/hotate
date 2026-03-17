@@ -1,4 +1,4 @@
-// SW無効化: 既存キャッシュを全消去して自身を解除
+// PWA is currently disabled. This file is kept only to clean up old registrations.
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {
   event.waitUntil(

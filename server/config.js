@@ -7,6 +7,106 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '..', 'data');
 const HOSTS_FILE = join(DATA_DIR, 'hosts.json');
+const AUTH_TYPES = new Set(['password', 'key']);
+
+export class ValidationError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'ValidationError';
+    this.statusCode = 400;
+  }
+}
+
+function normalizeRequiredString(field, value) {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new ValidationError(`${field} is required`);
+  }
+  return value.trim();
+}
+
+function normalizeOptionalString(field, value) {
+  if (value === undefined) return undefined;
+  return normalizeRequiredString(field, value);
+}
+
+function normalizePort(value, fallback) {
+  if (value === undefined) return fallback;
+
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new ValidationError('port must be an integer between 1 and 65535');
+  }
+  return port;
+}
+
+function normalizeAuthType(value, fallback) {
+  if (value === undefined) {
+    if (fallback !== undefined) return fallback;
+    throw new ValidationError('authType is required');
+  }
+  if (!AUTH_TYPES.has(value)) {
+    throw new ValidationError('authType must be password or key');
+  }
+  return value;
+}
+
+function ensureAuthSecret(authType, host) {
+  if (authType === 'password') {
+    delete host.keyPath;
+    if (!host.password) {
+      throw new ValidationError('password is required for password auth');
+    }
+    return;
+  }
+
+  delete host.password;
+  if (!host.keyPath) {
+    throw new ValidationError('keyPath is required for key auth');
+  }
+}
+
+export function buildNewHost(payload) {
+  const authType = normalizeAuthType(payload.authType);
+  const host = {
+    id: randomUUID(),
+    name: normalizeRequiredString('name', payload.name),
+    host: normalizeRequiredString('host', payload.host),
+    port: normalizePort(payload.port, 22),
+    username: normalizeRequiredString('username', payload.username),
+    authType,
+  };
+
+  if (authType === 'password') {
+    host.password = normalizeRequiredString('password', payload.password);
+  } else {
+    host.keyPath = normalizeRequiredString('keyPath', payload.keyPath);
+  }
+
+  return host;
+}
+
+export function applyHostUpdates(currentHost, updates) {
+  const nextHost = { ...currentHost };
+  const nextAuthType = normalizeAuthType(updates.authType, currentHost.authType);
+
+  if (updates.name !== undefined) nextHost.name = normalizeOptionalString('name', updates.name);
+  if (updates.host !== undefined) nextHost.host = normalizeOptionalString('host', updates.host);
+  if (updates.port !== undefined) nextHost.port = normalizePort(updates.port);
+  if (updates.username !== undefined) nextHost.username = normalizeOptionalString('username', updates.username);
+
+  nextHost.authType = nextAuthType;
+
+  if (nextAuthType === 'password') {
+    if (updates.password !== undefined) {
+      nextHost.password = normalizeRequiredString('password', updates.password);
+    }
+  } else if (updates.keyPath !== undefined) {
+    nextHost.keyPath = normalizeRequiredString('keyPath', updates.keyPath);
+  }
+
+  ensureAuthSecret(nextAuthType, nextHost);
+  return nextHost;
+}
 
 async function ensureDataDir() {
   if (!existsSync(DATA_DIR)) {
@@ -54,27 +154,7 @@ export function setupHostRoutes(app) {
   // POST /api/hosts — 新規作成
   app.post('/api/hosts', async (req, res) => {
     try {
-      const { name, host, port = 22, username, authType, password, keyPath } = req.body;
-
-      if (!name || !host || !username || !authType) {
-        return res.status(400).json({ error: 'name, host, username, authType are required' });
-      }
-      if (authType === 'password' && !password) {
-        return res.status(400).json({ error: 'password is required for password auth' });
-      }
-      if (authType === 'key' && !keyPath) {
-        return res.status(400).json({ error: 'keyPath is required for key auth' });
-      }
-
-      const newHost = {
-        id: randomUUID(),
-        name,
-        host,
-        port: Number(port),
-        username,
-        authType,
-        ...(authType === 'password' ? { password } : { keyPath }),
-      };
+      const newHost = buildNewHost(req.body);
 
       const hosts = await readHosts();
       hosts.push(newHost);
@@ -82,6 +162,9 @@ export function setupHostRoutes(app) {
 
       res.status(201).json(sanitize(newHost));
     } catch (err) {
+      if (err instanceof ValidationError) {
+        return res.status(err.statusCode).json({ error: err.message });
+      }
       res.status(500).json({ error: err.message });
     }
   });
@@ -95,32 +178,15 @@ export function setupHostRoutes(app) {
         return res.status(404).json({ error: 'Host not found' });
       }
 
-      const updates = req.body;
-      const host = hosts[idx];
-
-      if (updates.name !== undefined) host.name = updates.name;
-      if (updates.host !== undefined) host.host = updates.host;
-      if (updates.port !== undefined) host.port = Number(updates.port);
-      if (updates.username !== undefined) host.username = updates.username;
-      if (updates.authType !== undefined) {
-        host.authType = updates.authType;
-        if (updates.authType === 'password') {
-          delete host.keyPath;
-          if (updates.password) host.password = updates.password;
-        } else {
-          delete host.password;
-          if (updates.keyPath) host.keyPath = updates.keyPath;
-        }
-      } else {
-        if (updates.password !== undefined) host.password = updates.password;
-        if (updates.keyPath !== undefined) host.keyPath = updates.keyPath;
-      }
-
+      const host = applyHostUpdates(hosts[idx], req.body);
       hosts[idx] = host;
       await writeHosts(hosts);
 
       res.json(sanitize(host));
     } catch (err) {
+      if (err instanceof ValidationError) {
+        return res.status(err.statusCode).json({ error: err.message });
+      }
       res.status(500).json({ error: err.message });
     }
   });

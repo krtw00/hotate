@@ -136,7 +136,7 @@ flowchart TB
 | 入力 | WebSocketメッセージ（type: input / resize / tmux-query） |
 | 出力 | WebSocketメッセージ（type: output / error / exit / tmux-result / tmux-attached / tmux-detached） |
 | 依存 | SSHサーバー |
-| tmux関連 | tmux-queryはconn.exec()で実行（PTYとは別チャネル）。alternate screen bufferシーケンス検出でtmux-attached/tmux-detachedを通知 |
+| tmux関連 | tmux-queryは型付きpayloadを受け、サーバー側で安全にtmuxコマンドを組み立ててconn.exec()で実行する。alternate screen bufferシーケンス検出でtmux-attached/tmux-detachedを通知 |
 
 ---
 
@@ -169,8 +169,8 @@ hotate/
 │   │   ├── app.js        # SPA管理・WebSocket
 │   │   ├── terminal.js   # xterm.js
 │   │   └── input.js      # IME対応入力
-│   ├── manifest.json     # PWAマニフェスト
-│   └── sw.js             # Service Worker
+│   ├── manifest.json     # 将来のPWA再導入用
+│   └── sw.js             # 旧Service Workerのクリーンアップ用
 ├── data/
 │   └── hosts.json        # ホスト情報永続化
 ├── docs/                 # 設計ドキュメント

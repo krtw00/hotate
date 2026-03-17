@@ -25,7 +25,6 @@ ai_summary: "Hotateの対象範囲・対象外・フェーズ分割（MVP/将来
 | 機能 | IME対応入力 | compositionイベントによる日本語入力 |
 | 機能 | 特殊キー送信 | Tab, Ctrl+C, Ctrl+D, Esc等のツールバー |
 | 機能 | ホスト管理CRUD | JSON永続化によるホスト情報の登録・編集・削除 |
-| 機能 | PWA | Service Workerによるオフラインキャッシュ、ホーム画面追加 |
 | ユーザー | 個人開発者 | Basic認証による単一ユーザーアクセス |
 | プラットフォーム | モバイルブラウザ | iOS Safari, Android Chromeを主対象 |
 | プラットフォーム | デスクトップブラウザ | Chrome, Firefox（副次対象） |
@@ -39,7 +38,8 @@ ai_summary: "Hotateの対象範囲・対象外・フェーズ分割（MVP/将来
 | 機能 | マルチユーザー管理 | 個人利用のため不要 |
 | 機能 | SSH鍵生成UI | 既存鍵のマウントで対応 |
 | 機能 | セッション永続化 | 初期スコープでは不要 |
-| プラットフォーム | ネイティブアプリ | PWAで十分 |
+| 機能 | PWAインストール/オフライン対応 | 現在はService Workerを無効化しているため対象外 |
+| プラットフォーム | ネイティブアプリ | 将来的なPWA再導入で十分 |
 | データベース | RDB/NoSQL | JSONファイル永続化で対応 |
 
 ---
@@ -63,7 +63,6 @@ flowchart LR
 | IME対応入力バー | compositionイベントによる日本語入力対応 |
 | 特殊キーツールバー | Tab, Ctrl+C等のソフトウェアキー |
 | tmux タブ管理 | tmux attach自動検出、ウィンドウタブ表示・切替、デタッチ |
-| PWA対応 | manifest.json + Service Worker |
 | Docker化 | node:22-alpine + docker-compose + Traefik |
 
 ### Phase 2以降（将来検討）
@@ -74,6 +73,7 @@ flowchart LR
 | 複数タブ | 同時に複数SSHセッションを表示 |
 | テーマ切替 | ターミナルカラースキーム変更 |
 | WebAuthn認証 | Basic認証の代替としてパスキー対応 |
+| PWA再導入 | installable/offline対応を再設計して戻す |
 
 ---
 

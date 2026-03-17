@@ -9,6 +9,11 @@ const TerminalManager = (() => {
   let mouseMode = "none";
   let selectMode = false;
   let anchorRow = null; // 選択開始行
+  let cleanups = [];
+
+  function addCleanup(fn) {
+    cleanups.push(fn);
+  }
 
   function create(container) {
     if (term) destroy();
@@ -48,13 +53,16 @@ const TerminalManager = (() => {
     term.open(container);
     fitAddon.fit();
 
-    term.onData((data) => {
+    const onDataDisposable = term.onData((data) => {
       if (onDataCallback) onDataCallback(data);
     });
+    addCleanup(() => onDataDisposable.dispose());
 
-    window.addEventListener("resize", () => {
+    const onResize = () => {
       if (fitAddon) fitAddon.fit();
-    });
+    };
+    window.addEventListener("resize", onResize);
+    addCleanup(() => window.removeEventListener("resize", onResize));
 
     setupCopyPaste();
     setupSelectMode();
@@ -90,7 +98,7 @@ const TerminalManager = (() => {
       return true;
     });
 
-    document.addEventListener("paste", (e) => {
+    const onPaste = (e) => {
       const screen = document.getElementById("screen-terminal");
       if (!screen || !screen.classList.contains("active")) return;
       const text = e.clipboardData && e.clipboardData.getData("text");
@@ -98,15 +106,19 @@ const TerminalManager = (() => {
         e.preventDefault();
         onDataCallback(text);
       }
-    });
+    };
+    document.addEventListener("paste", onPaste);
+    addCleanup(() => document.removeEventListener("paste", onPaste));
 
     const el = term.element;
     if (el) {
-      el.addEventListener("contextmenu", (e) => {
+      const onContextMenu = (e) => {
         e.preventDefault();
         if (term.hasSelection()) { copySelection(); }
         else { pasteFromClipboard(); }
-      });
+      };
+      el.addEventListener("contextmenu", onContextMenu);
+      addCleanup(() => el.removeEventListener("contextmenu", onContextMenu));
     }
   }
 
@@ -116,7 +128,7 @@ const TerminalManager = (() => {
     const el = term.element;
     if (!el) return;
 
-    el.addEventListener("touchend", (e) => {
+    const onTouchEnd = (e) => {
       if (!selectMode) return;
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -140,7 +152,9 @@ const TerminalManager = (() => {
         anchorRow = null;
         showToast(lineCount + " lines selected — tap Copy");
       }
-    }, { capture: true });
+    };
+    el.addEventListener("touchend", onTouchEnd, { capture: true });
+    addCleanup(() => el.removeEventListener("touchend", onTouchEnd, { capture: true }));
   }
 
   function copySelection() {
@@ -254,7 +268,7 @@ const TerminalManager = (() => {
     let lastTouchY = 0;
     const SCROLL_THRESHOLD = 15;
 
-    document.addEventListener("touchstart", (e) => {
+    const onTouchStart = (e) => {
       const screen = document.getElementById("screen-terminal");
       if (!screen || !screen.classList.contains("active")) return;
       if (e.target.closest(".input-bar") || e.target.closest(".special-keys-bar") || e.target.closest(".tmux-tabs-bar")) return;
@@ -265,9 +279,11 @@ const TerminalManager = (() => {
         lastTouchY = e.touches[0].clientY;
         accumulated = 0;
       }
-    }, { passive: true, capture: true });
+    };
+    document.addEventListener("touchstart", onTouchStart, { passive: true, capture: true });
+    addCleanup(() => document.removeEventListener("touchstart", onTouchStart, { capture: true }));
 
-    document.addEventListener("touchmove", (e) => {
+    const onTouchMove = (e) => {
       const screen = document.getElementById("screen-terminal");
       if (!screen || !screen.classList.contains("active")) return;
       if (e.target.closest(".input-bar") || e.target.closest(".special-keys-bar") || e.target.closest(".tmux-tabs-bar")) return;
@@ -292,20 +308,24 @@ const TerminalManager = (() => {
         console.log("[hotate:scroll]", "mode=" + mouseMode, "dir=" + (ticks > 0 ? "up" : "down"), "ticks=" + count, "seq=" + JSON.stringify(seq));
         for (let i = 0; i < count; i++) { onDataCallback(seq); }
       }
-    }, { passive: false, capture: true });
+    };
+    document.addEventListener("touchmove", onTouchMove, { passive: false, capture: true });
+    addCleanup(() => document.removeEventListener("touchmove", onTouchMove, { capture: true }));
 
-    document.addEventListener("touchend", (e) => {
+    const onTouchEnd = (e) => {
       if (selectMode) return;
       touchStartY = null;
       accumulated = 0;
-    }, { passive: true, capture: true });
+    };
+    document.addEventListener("touchend", onTouchEnd, { passive: true, capture: true });
+    addCleanup(() => document.removeEventListener("touchend", onTouchEnd, { capture: true }));
   }
 
   function setupWheelScroll() {
     if (!term) return;
     const el = term.element;
     if (!el) return;
-    el.addEventListener("wheel", (e) => {
+    const onWheel = (e) => {
       if (!onDataCallback) return;
       // Shift+wheel: use xterm.js native scrollback (bypass tmux)
       if (e.shiftKey) return;
@@ -314,13 +334,15 @@ const TerminalManager = (() => {
       const { col, row } = clientToCell(e.clientX, e.clientY);
       const seq = scrollSeq(e.deltaY < 0, col, row);
       for (let i = 0; i < lines; i++) { onDataCallback(seq); }
-    }, { passive: false });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    addCleanup(() => el.removeEventListener("wheel", onWheel));
   }
 
   function setupAutoClipboard() {
     if (!term) return;
     // Auto-copy on selection (works for both normal and Shift+drag in tmux mouse mode)
-    term.onSelectionChange(() => {
+    const onSelectionChangeDisposable = term.onSelectionChange(() => {
       if (!term.hasSelection()) return;
       const sel = term.getSelection();
       if (sel) {
@@ -329,6 +351,7 @@ const TerminalManager = (() => {
         }).catch(() => {});
       }
     });
+    addCleanup(() => onSelectionChangeDisposable.dispose());
   }
 
   function onInput(callback) { onDataCallback = callback; }
@@ -349,7 +372,15 @@ const TerminalManager = (() => {
   function fit() { if (fitAddon) fitAddon.fit(); }
 
   function destroy() {
-    if (term) { term.dispose(); term = null; fitAddon = null; mouseMode = "none"; selectMode = false; anchorRow = null; }
+    for (const cleanup of cleanups.splice(0)) {
+      cleanup();
+    }
+    if (term) { term.dispose(); term = null; }
+    fitAddon = null;
+    onDataCallback = null;
+    mouseMode = "none";
+    selectMode = false;
+    anchorRow = null;
   }
 
   function onResize(callback) {

@@ -165,10 +165,18 @@ ws://host:port/ws?hostId={uuid}
 |------|---------|------|
 | `input` | `string` (Base64) | ユーザー入力をBase64エンコードしたもの |
 | `resize` | `{ cols: number, rows: number }` | ターミナルリサイズ通知 |
-| `tmux-query` | `string` (tmuxコマンド) | tmuxコマンドをexecチャネルで実行。`id`フィールド必須。許可コマンド: `tmux list-windows`, `tmux list-sessions`, `tmux select-window` |
+| `tmux-query` | `object` | tmux補助操作をexecチャネルで実行。`id`フィールド必須。`payload.action` は `list-sessions` / `list-windows` / `select-window` のみ |
 
 ```json
-{ "type": "tmux-query", "id": "<queryId>", "payload": "tmux list-windows -F '#{window_index} #{window_name} #{window_active}'" }
+{ "type": "tmux-query", "id": "sessions", "payload": { "action": "list-sessions" } }
+```
+
+```json
+{ "type": "tmux-query", "id": "windows", "payload": { "action": "list-windows", "session": "main" } }
+```
+
+```json
+{ "type": "tmux-query", "id": "switch", "payload": { "action": "select-window", "session": "main", "index": 2 } }
 ```
 
 ### サーバー → クライアント

@@ -2,6 +2,46 @@ import { Client } from 'ssh2';
 import { readFile } from 'node:fs/promises';
 import { getHostById } from './config.js';
 
+function shellEscape(value) {
+  return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
+function normalizeTmuxSession(value) {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error('tmux session is required');
+  }
+  return value;
+}
+
+function normalizeTmuxIndex(value) {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error('tmux window index must be a non-negative integer');
+  }
+  return value;
+}
+
+export function buildTmuxCommand(payload) {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('tmux payload must be an object');
+  }
+
+  switch (payload.action) {
+    case 'list-sessions':
+      return "tmux list-sessions -F '#{session_name}:#{session_attached}'";
+    case 'list-windows': {
+      const session = normalizeTmuxSession(payload.session);
+      return `tmux list-windows -t ${shellEscape(session)} -F '#{window_index}:#{window_name}:#{window_active}'`;
+    }
+    case 'select-window': {
+      const session = normalizeTmuxSession(payload.session);
+      const index = normalizeTmuxIndex(payload.index);
+      return `tmux select-window -t ${shellEscape(`${session}:${index}`)}`;
+    }
+    default:
+      throw new Error('tmux action not allowed');
+  }
+}
+
 /**
  * WebSocket接続に対してSSHセッションを確立し、双方向ブリッジを行う。
  *
@@ -106,14 +146,15 @@ export async function handleSSHSession(ws, hostId) {
         const { cols, rows } = msg.payload;
         stream.setWindow(rows, cols, 0, 0);
       } else if (msg.type === 'tmux-query') {
-        // Execute tmux command via separate exec channel (not through the PTY)
-        const cmd = msg.payload;
         const queryId = msg.id || '';
-        const allowed = ['tmux list-windows', 'tmux list-sessions', 'tmux select-window'];
-        if (!allowed.some(prefix => cmd.startsWith(prefix))) {
-          ws.send(JSON.stringify({ type: 'tmux-result', id: queryId, payload: { error: 'Command not allowed' } }));
+        let cmd;
+        try {
+          cmd = buildTmuxCommand(msg.payload);
+        } catch (err) {
+          ws.send(JSON.stringify({ type: 'tmux-result', id: queryId, payload: { error: err.message } }));
           return;
         }
+
         conn.exec(cmd, (err, ch) => {
           if (err) {
             ws.send(JSON.stringify({ type: 'tmux-result', id: queryId, payload: { error: err.message } }));

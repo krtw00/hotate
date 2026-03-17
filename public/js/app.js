@@ -313,27 +313,31 @@ const App = (() => {
   }
 
   // ===== SSH Connection =====
-  function connect() {
+  async function connect() {
     if (!selectedHostId) return;
     const host = hosts.find(h => h.id === selectedHostId);
     if (!host) return;
 
-    // For password auth, include password in the host data on the server side
-    // If the host uses password auth, we may need to update it
-    if (host.authType === 'password' && connectPassword.value) {
-      // Update password on the server before connecting
-      fetch(`/api/hosts/${host.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: connectPassword.value }),
-      }).then(() => {
-        startSSH(host);
-      }).catch(err => {
-        setStatus('Error: ' + err.message, 'red');
-      });
-    } else {
-      startSSH(host);
+    try {
+      if (host.authType === 'password' && connectPassword.value) {
+        const res = await fetch(`/api/hosts/${host.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: connectPassword.value }),
+        });
+
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          throw new Error(payload.error || 'Failed to update password before connect');
+        }
+      }
+    } catch (err) {
+      setStatus('Error: ' + err.message, 'red');
+      btnConnect.disabled = false;
+      return;
     }
+
+    startSSH(host);
   }
 
   function startSSH(host) {
@@ -518,7 +522,7 @@ const App = (() => {
     ws.send(JSON.stringify({
       type: 'tmux-query',
       id: 'sessions',
-      payload: "tmux list-sessions -F '#{session_name}:#{session_attached}'",
+      payload: { action: 'list-sessions' },
     }));
   }
 
@@ -534,7 +538,7 @@ const App = (() => {
     ws.send(JSON.stringify({
       type: 'tmux-query',
       id: 'windows',
-      payload: `tmux list-windows -t ${tmuxSession} -F '#{window_index}:#{window_name}:#{window_active}'`,
+      payload: { action: 'list-windows', session: tmuxSession },
     }));
   }
 
@@ -612,9 +616,11 @@ const App = (() => {
 
   function selectTmuxWindow(index) {
     if (!ws || ws.readyState !== WebSocket.OPEN || !tmuxSession) return;
-    // Send Ctrl+B then window index through the PTY (tmux prefix + number)
-    const prefix = '\x02'; // Ctrl+B (default tmux prefix)
-    sendInput(btoa(prefix + String(index)));
+    ws.send(JSON.stringify({
+      type: 'tmux-query',
+      id: 'switch',
+      payload: { action: 'select-window', session: tmuxSession, index },
+    }));
     setTimeout(queryTmuxWindows, 300);
   }
 
@@ -646,12 +652,3 @@ const App = (() => {
 
   return { connect, disconnect };
 })();
-
-// Service Worker: 古いSWを一度解除してから再登録（キャッシュ強制更新）
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then((regs) => {
-    for (const reg of regs) reg.unregister();
-    caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
-    setTimeout(() => navigator.serviceWorker.register('/sw.js').catch(() => {}), 1000);
-  });
-}
