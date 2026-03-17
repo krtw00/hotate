@@ -4,6 +4,12 @@
 
 モバイル端末からIME対応の日本語入力でSSH操作ができる、ブラウザベースのSSHクライアント。
 
+## ドキュメント
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) -- 現在のシステム構成と重要な境界
+- [DEPLOY.md](DEPLOY.md) -- 本番デプロイとロールバック手順
+- [CONTRIBUTING.md](CONTRIBUTING.md) -- コントリビュート方針と文書更新ルール
+
 ## 特徴
 
 - **IME対応の日本語入力** -- `compositionstart/end` で変換を追跡し、確定後にのみ送信
@@ -15,12 +21,6 @@
 - **tmux連携** -- `tmux attach` を自動検出し、ウィンドウタブバーで切り替え・デタッチ
 - **Basic認証** -- 環境変数でユーザー名・パスワードを設定
 - **ビルドステップなし** -- Vanilla JS + CDN。編集してリロードするだけ
-
-## スクリーンショット
-
-| モバイル | デスクトップ |
-|:---:|:---:|
-| <img src="docs/screenshot-connect-mobile.png" width="300"> | <img src="docs/screenshot-connect-desktop.png" width="600"> |
 
 ## クイックスタート
 
@@ -57,8 +57,9 @@ docker compose up -d
 server/          # Express + WebSocket + SSH
 public/          # 静的ファイル (HTML/CSS/JS)
 data/            # hosts.json (永続化)
-docs/            # 設計ドキュメント
 ```
+
+現在の保守対象の構成説明は [ARCHITECTURE.md](ARCHITECTURE.md) を参照してください。
 
 ## 開発
 

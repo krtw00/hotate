@@ -4,6 +4,12 @@
 
 A browser-based SSH client with IME-aware Japanese input, designed for mobile devices.
 
+## Docs
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) -- current system shape and important runtime boundaries
+- [DEPLOY.md](DEPLOY.md) -- production deployment and rollback steps
+- [CONTRIBUTING.md](CONTRIBUTING.md) -- contribution and documentation rules
+
 ## Features
 
 - **IME-aware Japanese input** -- Tracks composition via `compositionstart/end`, sends only after commit
@@ -15,12 +21,6 @@ A browser-based SSH client with IME-aware Japanese input, designed for mobile de
 - **tmux integration** -- Auto-detects `tmux attach`, switch/detach via window tab bar
 - **Basic auth** -- Set username/password via environment variables
 - **No build step** -- Vanilla JS + CDN. Edit and reload
-
-## Screenshots
-
-| Mobile | Desktop |
-|:---:|:---:|
-| <img src="docs/screenshot-connect-mobile.png" width="300"> | <img src="docs/screenshot-connect-desktop.png" width="600"> |
 
 ## Quick Start
 
@@ -59,8 +59,9 @@ Browser (xterm.js) <-- WebSocket (Base64) --> Node.js (Express) <-- ssh2 --> SSH
 server/          # Express + WebSocket + SSH
 public/          # Static files (HTML/CSS/JS)
 data/            # hosts.json (persistence)
-docs/            # Design documents
 ```
+
+For the maintained version of the system overview, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Development
 
