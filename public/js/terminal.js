@@ -204,9 +204,22 @@ const TerminalManager = (() => {
   }
 
   function detectMouseMode(text) {
+    const prev = mouseMode;
     if (text.includes("\x1b[?1006h")) { mouseMode = "sgr"; }
     else if (text.includes("\x1b[?1000h")) { mouseMode = "x10"; }
     if (text.includes("\x1b[?1000l") && text.includes("\x1b[?1006l")) { mouseMode = "none"; }
+    if (mouseMode !== prev) {
+      console.log("[hotate:mouse]", prev, "→", mouseMode);
+    }
+    // デバッグ: 画面上にmouseModeを表示
+    let dbg = document.getElementById("hotate-mouse-dbg");
+    if (!dbg) {
+      dbg = document.createElement("div");
+      dbg.id = "hotate-mouse-dbg";
+      dbg.style.cssText = "position:fixed;top:4px;right:4px;background:rgba(0,0,0,0.8);color:#0f0;font-size:12px;padding:2px 6px;z-index:99999;border-radius:4px;pointer-events:none;";
+      document.body.appendChild(dbg);
+    }
+    dbg.textContent = "mouse:" + mouseMode;
   }
 
   function clientToCell(clientX, clientY) {
@@ -276,6 +289,7 @@ const TerminalManager = (() => {
         const { col, row } = clientToCell(lastTouchX, lastTouchY);
         const seq = scrollSeq(ticks > 0, col, row);
         const count = Math.abs(ticks);
+        console.log("[hotate:scroll]", "mode=" + mouseMode, "dir=" + (ticks > 0 ? "up" : "down"), "ticks=" + count, "seq=" + JSON.stringify(seq));
         for (let i = 0; i < count; i++) { onDataCallback(seq); }
       }
     }, { passive: false, capture: true });
