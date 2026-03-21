@@ -13,7 +13,7 @@ This document describes the current production workflow for Hotate.
 ```bash
 ssh apps-vps '
   cd ~/hotate &&
-  git pull --ff-only origin master &&
+  git pull --ff-only origin main &&
   docker compose up -d --build
 '
 ```
@@ -47,11 +47,11 @@ git checkout <previous-good-commit>
 docker compose up -d --build
 ```
 
-If you roll back this way, return the repo to `master` afterward once you are done investigating.
+If you roll back this way, return the repo to `main` afterward once you are done investigating.
 
 ## Deployment Notes
 
 - `docker compose.yml` is the primary production path.
 - The container stores app data in `~/hotate/data`.
 - SSH keys are mounted from `SSH_KEY_DIR` into `/home/node/.ssh`.
-- If branch tracking is missing on the server, use `git pull --ff-only origin master`.
+- If branch tracking is missing on the server, use `git pull --ff-only origin main`.
